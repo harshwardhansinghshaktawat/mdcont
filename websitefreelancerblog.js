@@ -11,6 +11,7 @@ class MarkdownBlogViewer extends HTMLElement {
       isLoading: true
     };
 
+    this.markedLoaded = false;
     this.initializeUI();
   }
 
@@ -20,6 +21,8 @@ class MarkdownBlogViewer extends HTMLElement {
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
+    console.log('Attribute changed:', name, 'Value:', newValue ? newValue.substring(0, 100) : 'empty');
+    
     if (!newValue || oldValue === newValue) return;
 
     if (name === 'cms-markdown-content') {
@@ -35,6 +38,7 @@ class MarkdownBlogViewer extends HTMLElement {
         :host {
           display: block;
           width: 100%;
+          min-height: 400px;
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
@@ -48,7 +52,8 @@ class MarkdownBlogViewer extends HTMLElement {
           max-width: 900px;
           margin: 0 auto;
           padding: 40px 20px;
-          background-color: #ffffff;
+          background-color: #1E1E1E;
+          min-height: 400px;
         }
 
         /* Loading State */
@@ -65,7 +70,7 @@ class MarkdownBlogViewer extends HTMLElement {
           width: 50px;
           height: 50px;
           border: 4px solid #f3f3f3;
-          border-top: 4px solid #3498db;
+          border-top: 4px solid #64FFDA;
           border-radius: 50%;
           animation: spin 1s linear infinite;
         }
@@ -76,8 +81,17 @@ class MarkdownBlogViewer extends HTMLElement {
         }
 
         .loading-text {
-          color: #666;
+          color: #ffffff;
           font-size: 16px;
+        }
+
+        .error-state {
+          display: none;
+          padding: 20px;
+          background-color: #ff4444;
+          color: white;
+          border-radius: 8px;
+          margin: 20px;
         }
 
         @keyframes fadeInUp {
@@ -102,8 +116,8 @@ class MarkdownBlogViewer extends HTMLElement {
 
         /* Table of Contents */
         .table-of-contents {
-          background-color: #f8f9fa;
-          border: 2px solid #e9ecef;
+          background-color: #2d2d2d;
+          border: 2px solid #3d3d3d;
           border-radius: 8px;
           padding: 24px;
           margin-bottom: 40px;
@@ -113,7 +127,7 @@ class MarkdownBlogViewer extends HTMLElement {
         .toc-title {
           font-size: 20px;
           font-weight: 700;
-          color: #1a1a1a;
+          color: #64FFDA;
           margin: 0 0 16px 0;
           display: flex;
           align-items: center;
@@ -135,7 +149,7 @@ class MarkdownBlogViewer extends HTMLElement {
         }
 
         .toc-list a {
-          color: #495057;
+          color: #ffffff;
           text-decoration: none;
           display: block;
           padding: 6px 0;
@@ -145,10 +159,10 @@ class MarkdownBlogViewer extends HTMLElement {
         }
 
         .toc-list a:hover {
-          color: #3498db;
-          border-left-color: #3498db;
+          color: #64FFDA;
+          border-left-color: #64FFDA;
           padding-left: 16px;
-          background-color: rgba(52, 152, 219, 0.05);
+          background-color: rgba(100, 255, 218, 0.05);
         }
 
         .toc-list .toc-level-2 {
@@ -175,7 +189,7 @@ class MarkdownBlogViewer extends HTMLElement {
         .blog-content {
           font-size: 18px;
           line-height: 1.8;
-          color: #333;
+          color: #ffffff;
           animation: fadeInUp 0.8s ease-out 0.4s both;
         }
 
@@ -190,7 +204,7 @@ class MarkdownBlogViewer extends HTMLElement {
           line-height: 1.3;
           margin-top: 40px;
           margin-bottom: 20px;
-          color: #1a1a1a;
+          color: #64FFDA;
           letter-spacing: -0.01em;
         }
 
@@ -227,21 +241,21 @@ class MarkdownBlogViewer extends HTMLElement {
         }
 
         .blog-content a {
-          color: #3498db;
+          color: #FFFF05;
           text-decoration: none;
-          border-bottom: 1px solid #3498db;
+          border-bottom: 1px solid #FFFF05;
           transition: all 0.3s ease;
         }
 
         .blog-content a:hover {
-          color: #2980b9;
-          border-bottom-color: #2980b9;
+          color: #FFFF05;
+          border-bottom-color: #FFFF05;
         }
 
         .blog-content strong,
         .blog-content b {
           font-weight: 700;
-          color: #1a1a1a;
+          color: #64FFDA;
         }
 
         .blog-content em,
@@ -271,10 +285,10 @@ class MarkdownBlogViewer extends HTMLElement {
         .blog-content blockquote {
           margin: 30px 0;
           padding: 20px 30px;
-          border-left: 4px solid #3498db;
-          background-color: #f8f9fa;
+          border-left: 4px solid #FFFF05;
+          background-color: #2d2d2d;
           font-style: italic;
-          color: #555;
+          color: #FFFF05;
           border-radius: 0 8px 8px 0;
         }
 
@@ -283,12 +297,12 @@ class MarkdownBlogViewer extends HTMLElement {
         }
 
         .blog-content code {
-          background-color: #f4f4f4;
+          background-color: #2d2d2d;
           padding: 3px 8px;
           border-radius: 4px;
           font-family: 'Monaco', 'Courier New', monospace;
           font-size: 0.9em;
-          color: #e74c3c;
+          color: #64FFDA;
         }
 
         .blog-content pre {
@@ -298,7 +312,7 @@ class MarkdownBlogViewer extends HTMLElement {
           border-radius: 8px;
           overflow-x: auto;
           margin: 30px 0;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
         }
 
         .blog-content pre code {
@@ -313,12 +327,12 @@ class MarkdownBlogViewer extends HTMLElement {
           height: auto;
           border-radius: 8px;
           margin: 30px 0;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
 
         .blog-content hr {
           border: none;
-          border-top: 2px solid #e0e0e0;
+          border-top: 2px solid #3d3d3d;
           margin: 40px 0;
         }
 
@@ -326,7 +340,7 @@ class MarkdownBlogViewer extends HTMLElement {
           width: 100%;
           border-collapse: collapse;
           margin: 30px 0;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
           border-radius: 8px;
           overflow: hidden;
         }
@@ -335,13 +349,13 @@ class MarkdownBlogViewer extends HTMLElement {
         .blog-content table td {
           padding: 12px 16px;
           text-align: left;
-          border-bottom: 1px solid #e0e0e0;
+          border-bottom: 1px solid #3d3d3d;
         }
 
         .blog-content table th {
-          background-color: #f8f9fa;
+          background-color: #2d2d2d;
           font-weight: 700;
-          color: #1a1a1a;
+          color: #64FFDA;
         }
 
         .blog-content table tr:last-child td {
@@ -349,7 +363,7 @@ class MarkdownBlogViewer extends HTMLElement {
         }
 
         .blog-content table tr:hover {
-          background-color: #f8f9fa;
+          background-color: #2d2d2d;
         }
 
         /* Responsive Design */
@@ -452,6 +466,10 @@ class MarkdownBlogViewer extends HTMLElement {
           <p class="loading-text">Loading blog post...</p>
         </div>
 
+        <div class="error-state" id="error-state">
+          <p>Error loading content. Please refresh the page.</p>
+        </div>
+
         <div id="blog-content-wrapper" style="display: none;">
           <div id="table-of-contents"></div>
           <div class="blog-content" id="blog-content"></div>
@@ -461,6 +479,7 @@ class MarkdownBlogViewer extends HTMLElement {
 
     // Get DOM references
     this.loadingState = this.shadowRoot.getElementById('loading-state');
+    this.errorState = this.shadowRoot.getElementById('error-state');
     this.contentWrapper = this.shadowRoot.getElementById('blog-content-wrapper');
     this.tocElement = this.shadowRoot.getElementById('table-of-contents');
     this.contentElement = this.shadowRoot.getElementById('blog-content');
@@ -476,20 +495,21 @@ class MarkdownBlogViewer extends HTMLElement {
     const headings = tempDiv.querySelectorAll('h1, h2, h3, h4, h5, h6');
     
     if (headings.length === 0) {
-      return ''; // No headings, no TOC
+      return {
+        toc: '',
+        content: htmlContent
+      };
     }
     
     // Generate unique IDs for each heading and build TOC
     const tocItems = [];
     headings.forEach((heading, index) => {
-      const level = parseInt(heading.tagName.substring(1)); // Get number from h1, h2, etc.
+      const level = parseInt(heading.tagName.substring(1));
       const text = heading.textContent;
       const id = `heading-${index}`;
       
-      // Add ID to the heading
       heading.id = id;
       
-      // Add to TOC items
       tocItems.push({
         level: level,
         text: text,
@@ -497,7 +517,6 @@ class MarkdownBlogViewer extends HTMLElement {
       });
     });
     
-    // Update the content with IDs added to headings
     const updatedContent = tempDiv.innerHTML;
     
     // Build TOC HTML
@@ -529,59 +548,96 @@ class MarkdownBlogViewer extends HTMLElement {
     };
   }
 
-  // Update title (kept for compatibility but not displayed)
-  updateTitle() {
-    // Title is no longer displayed in the custom element
-    // It should be added to the Wix page separately
-  }
-
-  // Update featured image (kept for compatibility but not displayed)
-  updateFeaturedImage() {
-    // Featured image is no longer displayed in the custom element
-    // It should be added to the Wix page separately
+  // Parse markdown to HTML (simple fallback if marked.js fails)
+  simpleMarkdownParse(markdown) {
+    let html = markdown;
+    
+    // Headers
+    html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+    html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+    html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+    
+    // Bold
+    html = html.replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>');
+    
+    // Italic
+    html = html.replace(/\*(.*?)\*/gim, '<em>$1</em>');
+    
+    // Links
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2">$1</a>');
+    
+    // Line breaks
+    html = html.replace(/\n\n/g, '</p><p>');
+    html = '<p>' + html + '</p>';
+    
+    return html;
   }
 
   // Update content with Markdown rendering and automatic TOC
   updateContent() {
-    if (this.contentElement && this.tocElement) {
-      // Use marked.js from CDN for Markdown parsing
-      if (typeof marked !== 'undefined') {
-        const htmlContent = marked.parse(this.state.markdownContent);
+    console.log('updateContent called, content length:', this.state.markdownContent.length);
+    
+    if (!this.contentElement || !this.tocElement) {
+      console.error('Content elements not found');
+      return;
+    }
+
+    if (!this.state.markdownContent) {
+      console.log('No markdown content available');
+      this.showError('No content available');
+      return;
+    }
+
+    // Wait for marked to be loaded
+    this.loadMarkedJS()
+      .then(() => {
+        console.log('Marked.js loaded, parsing content...');
+        let htmlContent;
+        
+        // Try to use marked, fall back to simple parser
+        try {
+          if (window.marked && window.marked.parse) {
+            // eslint-disable-next-line no-undef
+            htmlContent = marked.parse(this.state.markdownContent);
+          } else {
+            console.warn('marked.parse not available, using fallback parser');
+            htmlContent = this.simpleMarkdownParse(this.state.markdownContent);
+          }
+        } catch (error) {
+          console.error('Error parsing markdown:', error);
+          htmlContent = this.simpleMarkdownParse(this.state.markdownContent);
+        }
+        
         const result = this.generateTableOfContents(htmlContent);
         
-        if (result && result.toc) {
+        if (result.toc) {
           this.tocElement.innerHTML = result.toc;
           this.contentElement.innerHTML = result.content;
-          
-          // Add smooth scroll behavior to TOC links
           this.addSmoothScrollToTOC();
         } else {
-          // No headings found, just show content without TOC
           this.tocElement.innerHTML = '';
-          this.contentElement.innerHTML = htmlContent;
+          this.contentElement.innerHTML = result.content;
         }
-      } else {
-        // Fallback: Load marked.js dynamically
-        this.loadMarkedJS().then(() => {
-          const htmlContent = marked.parse(this.state.markdownContent);
-          const result = this.generateTableOfContents(htmlContent);
-          
-          if (result && result.toc) {
-            this.tocElement.innerHTML = result.toc;
-            this.contentElement.innerHTML = result.content;
-            
-            // Add smooth scroll behavior to TOC links
-            this.addSmoothScrollToTOC();
-          } else {
-            // No headings found, just show content without TOC
-            this.tocElement.innerHTML = '';
-            this.contentElement.innerHTML = htmlContent;
-          }
-        });
-      }
-    }
-    
-    this.hideLoading();
+        
+        console.log('Content updated successfully');
+        this.hideLoading();
+      })
+      .catch(error => {
+        console.error('Error in updateContent:', error);
+        // Use fallback parser
+        const htmlContent = this.simpleMarkdownParse(this.state.markdownContent);
+        const result = this.generateTableOfContents(htmlContent);
+        
+        if (result.toc) {
+          this.tocElement.innerHTML = result.toc;
+          this.contentElement.innerHTML = result.content;
+        } else {
+          this.tocElement.innerHTML = '';
+          this.contentElement.innerHTML = result.content;
+        }
+        
+        this.hideLoading();
+      });
   }
 
   // Add smooth scroll behavior to TOC links
@@ -600,9 +656,8 @@ class MarkdownBlogViewer extends HTMLElement {
             block: 'start'
           });
           
-          // Add a highlight effect to the target heading
           targetElement.style.transition = 'background-color 0.3s ease';
-          targetElement.style.backgroundColor = 'rgba(52, 152, 219, 0.1)';
+          targetElement.style.backgroundColor = 'rgba(100, 255, 218, 0.1)';
           targetElement.style.padding = '8px';
           targetElement.style.marginLeft = '-8px';
           targetElement.style.marginRight = '-8px';
@@ -619,21 +674,44 @@ class MarkdownBlogViewer extends HTMLElement {
   // Load marked.js library dynamically
   loadMarkedJS() {
     return new Promise((resolve, reject) => {
-      if (typeof marked !== 'undefined') {
+      if (window.marked && window.marked.parse) {
+        console.log('marked.js already loaded');
+        this.markedLoaded = true;
         resolve();
         return;
       }
       
+      console.log('Loading marked.js from CDN...');
       const script = document.createElement('script');
       script.src = 'https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js';
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error('Failed to load marked.js'));
+      script.async = true;
+      script.onload = () => {
+        console.log('marked.js loaded successfully');
+        this.markedLoaded = true;
+        resolve();
+      };
+      script.onerror = (error) => {
+        console.error('Failed to load marked.js:', error);
+        reject(new Error('Failed to load marked.js'));
+      };
       document.head.appendChild(script);
     });
   }
 
+  // Show error state
+  showError(message) {
+    if (this.errorState) {
+      this.errorState.textContent = message;
+      this.errorState.style.display = 'block';
+    }
+    if (this.loadingState) {
+      this.loadingState.style.display = 'none';
+    }
+  }
+
   // Hide loading state and show content
   hideLoading() {
+    console.log('Hiding loading state');
     if (this.loadingState && this.contentWrapper) {
       this.loadingState.style.display = 'none';
       this.contentWrapper.style.display = 'block';
@@ -642,14 +720,20 @@ class MarkdownBlogViewer extends HTMLElement {
 
   // Connected callback
   connectedCallback() {
+    console.log('Custom element connected to DOM');
+    
     // Load marked.js when component is connected
     this.loadMarkedJS().catch(error => {
       console.error('Error loading marked.js:', error);
     });
     
-    // If we already have data, update the UI
-    if (this.state.title || this.state.featuredImage || this.state.markdownContent) {
-      this.hideLoading();
+    // Check if we have content from attributes
+    const cmsContent = this.getAttribute('cms-markdown-content');
+    console.log('Initial cms-markdown-content:', cmsContent ? cmsContent.substring(0, 100) : 'not set');
+    
+    if (cmsContent) {
+      this.state.markdownContent = cmsContent;
+      this.updateContent();
     }
   }
 }
