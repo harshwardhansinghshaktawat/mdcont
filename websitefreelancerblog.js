@@ -1,3 +1,5 @@
+/* global marked */
+
 class MarkdownBlogViewer extends HTMLElement {
   constructor() {
     super();
@@ -846,15 +848,28 @@ class MarkdownBlogViewer extends HTMLElement {
   updateContent() {
     if (!this.contentElement || !this.tocElement) return;
 
-    if (typeof marked !== 'undefined') {
+    if (typeof marked !== 'undefined' && marked && marked.parse) {
       this.renderContent();
     } else {
-      this.loadMarkedJS().then(() => this.renderContent());
+      this.loadMarkedJS()
+        .then(() => this.renderContent())
+        .catch(error => {
+          console.error('Failed to load marked.js:', error);
+          this.contentElement.innerHTML = '<p>Error loading content</p>';
+          this.hideLoading();
+        });
     }
   }
 
   // Render the content
   renderContent() {
+    if (typeof marked === 'undefined' || !marked || !marked.parse) {
+      console.error('Marked.js not loaded');
+      this.contentElement.innerHTML = '<p>Error: Markdown parser not loaded</p>';
+      this.hideLoading();
+      return;
+    }
+
     const htmlContent = marked.parse(this.state.markdownContent);
     const result = this.generateTableOfContents(htmlContent);
     
@@ -940,15 +955,21 @@ class MarkdownBlogViewer extends HTMLElement {
   // Load marked.js library dynamically
   loadMarkedJS() {
     return new Promise((resolve, reject) => {
-      if (typeof marked !== 'undefined') {
+      if (typeof marked !== 'undefined' && marked && marked.parse) {
         resolve();
         return;
       }
       
       const script = document.createElement('script');
       script.src = 'https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js';
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error('Failed to load marked.js'));
+      script.onload = () => {
+        if (typeof marked !== 'undefined' && marked && marked.parse) {
+          resolve();
+        } else {
+          reject(new Error('Marked.js loaded but not initialized properly'));
+        }
+      };
+      script.onerror = () => reject(new Error('Failed to load marked.js from CDN'));
       document.head.appendChild(script);
     });
   }
@@ -963,13 +984,20 @@ class MarkdownBlogViewer extends HTMLElement {
 
   // Connected callback
   connectedCallback() {
-    this.loadMarkedJS().catch(error => {
-      console.error('Error loading marked.js:', error);
-    });
-    
-    if (this.state.markdownContent) {
-      this.hideLoading();
-    }
+    this.loadMarkedJS()
+      .then(() => {
+        console.log('Marked.js loaded successfully');
+        if (this.state.markdownContent) {
+          this.updateContent();
+        }
+      })
+      .catch(error => {
+        console.error('Error loading marked.js:', error);
+        if (this.contentElement) {
+          this.contentElement.innerHTML = '<p style="color: #ff6b6b;">Error: Failed to load Markdown parser. Please refresh the page.</p>';
+        }
+        this.hideLoading();
+      });
   }
 }
 
