@@ -1,5 +1,3 @@
-/* global marked */
-
 class MarkdownBlogViewer extends HTMLElement {
   constructor() {
     super();
@@ -7,10 +5,9 @@ class MarkdownBlogViewer extends HTMLElement {
 
     // State management
     this.state = {
+      title: '',
+      featuredImage: '',
       markdownContent: '',
-      author: '',
-      authorAvatar: '',
-      authorBio: '',
       isLoading: true
     };
 
@@ -19,7 +16,7 @@ class MarkdownBlogViewer extends HTMLElement {
 
   // CMS Integration - Observed attributes
   static get observedAttributes() {
-    return ['cms-markdown-content', 'cms-author', 'cms-author-avatar', 'cms-author-bio'];
+    return ['cms-markdown-content'];
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
@@ -28,19 +25,10 @@ class MarkdownBlogViewer extends HTMLElement {
     if (name === 'cms-markdown-content') {
       this.state.markdownContent = newValue;
       this.updateContent();
-    } else if (name === 'cms-author') {
-      this.state.author = newValue;
-      this.updateAuthorSection();
-    } else if (name === 'cms-author-avatar') {
-      this.state.authorAvatar = newValue;
-      this.updateAuthorSection();
-    } else if (name === 'cms-author-bio') {
-      this.state.authorBio = newValue;
-      this.updateAuthorSection();
     }
   }
 
-  // Initialize the UI components with dark theme design
+  // Initialize the UI components with beautiful, modern design
   initializeUI() {
     this.shadowRoot.innerHTML = `
       <style>
@@ -50,31 +38,17 @@ class MarkdownBlogViewer extends HTMLElement {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
-          background-color: #1E1E1E;
-          color: #ffffff;
         }
 
         * {
           box-sizing: border-box;
         }
 
-        .blog-post-wrapper {
-          background-color: #1E1E1E;
-          min-height: 100vh;
-          padding: 20px;
-        }
-
-        #blog-content-wrapper {
-          width: 100%;
-        }
-
         .blog-post-container {
-          max-width: 1400px;
+          max-width: 900px;
           margin: 0 auto;
-          display: grid;
-          grid-template-columns: 280px 1fr;
-          gap: 40px;
-          position: relative;
+          padding: 40px 20px;
+          background-color: #ffffff;
         }
 
         /* Loading State */
@@ -85,15 +59,13 @@ class MarkdownBlogViewer extends HTMLElement {
           min-height: 400px;
           flex-direction: column;
           gap: 20px;
-          max-width: 1400px;
-          margin: 0 auto;
         }
 
         .loading-spinner {
           width: 50px;
           height: 50px;
-          border: 4px solid #2a2a2a;
-          border-top: 4px solid #64FFDA;
+          border: 4px solid #f3f3f3;
+          border-top: 4px solid #3498db;
           border-radius: 50%;
           animation: spin 1s linear infinite;
         }
@@ -104,62 +76,52 @@ class MarkdownBlogViewer extends HTMLElement {
         }
 
         .loading-text {
-          color: #64FFDA;
+          color: #666;
           font-size: 16px;
         }
 
-        /* Table of Contents - Sticky Sidebar */
-        .toc-sidebar {
-          position: sticky;
-          top: 20px;
-          height: fit-content;
-          max-height: calc(100vh - 40px);
-          overflow-y: auto;
-          background: linear-gradient(135deg, #252525 0%, #1a1a1a 100%);
-          border: 2px solid #64FFDA;
-          border-radius: 16px;
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+
+        /* Table of Contents */
+        .table-of-contents {
+          background-color: #f8f9fa;
+          border: 2px solid #e9ecef;
+          border-radius: 8px;
           padding: 24px;
-          box-shadow: 0 8px 32px rgba(100, 255, 218, 0.1);
-        }
-
-        .toc-sidebar::-webkit-scrollbar {
-          width: 8px;
-        }
-
-        .toc-sidebar::-webkit-scrollbar-track {
-          background: #1a1a1a;
-          border-radius: 4px;
-        }
-
-        .toc-sidebar::-webkit-scrollbar-thumb {
-          background: #64FFDA;
-          border-radius: 4px;
-        }
-
-        .toc-sidebar::-webkit-scrollbar-thumb:hover {
-          background: #52d4b8;
-        }
-
-        .toc-header {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          margin-bottom: 20px;
-          padding-bottom: 16px;
-          border-bottom: 2px solid rgba(100, 255, 218, 0.3);
-        }
-
-        .toc-icon {
-          font-size: 24px;
-          filter: drop-shadow(0 0 8px rgba(100, 255, 218, 0.6));
+          margin-bottom: 40px;
+          animation: fadeInUp 0.6s ease-out;
         }
 
         .toc-title {
-          font-size: 18px;
+          font-size: 20px;
           font-weight: 700;
-          color: #64FFDA;
-          text-transform: uppercase;
-          letter-spacing: 1px;
+          color: #1a1a1a;
+          margin: 0 0 16px 0;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .toc-icon {
+          font-size: 22px;
         }
 
         .toc-list {
@@ -169,166 +131,55 @@ class MarkdownBlogViewer extends HTMLElement {
         }
 
         .toc-list li {
-          margin-bottom: 4px;
+          margin-bottom: 8px;
         }
 
         .toc-list a {
-          color: #b8b8b8;
+          color: #495057;
           text-decoration: none;
-          display: flex;
-          align-items: baseline;
-          gap: 8px;
-          padding: 8px 12px;
-          border-radius: 8px;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          font-size: 14px;
-          line-height: 1.4;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .toc-list a::before {
-          content: '';
-          position: absolute;
-          left: 0;
-          top: 0;
-          height: 100%;
-          width: 3px;
-          background: #64FFDA;
-          transform: scaleY(0);
-          transition: transform 0.3s ease;
+          display: block;
+          padding: 6px 0;
+          transition: all 0.2s ease;
+          border-left: 3px solid transparent;
+          padding-left: 12px;
         }
 
         .toc-list a:hover {
-          color: #64FFDA;
-          background: rgba(100, 255, 218, 0.1);
+          color: #3498db;
+          border-left-color: #3498db;
           padding-left: 16px;
+          background-color: rgba(52, 152, 219, 0.05);
         }
 
-        .toc-list a:hover::before {
-          transform: scaleY(1);
-        }
-
-        .toc-list a.active {
-          color: #64FFDA;
-          background: rgba(100, 255, 218, 0.15);
-          font-weight: 600;
-        }
-
-        .toc-list a.active::before {
-          transform: scaleY(1);
-        }
-
-        .toc-chapter {
-          color: #64FFDA;
-          font-weight: 700;
-          font-size: 12px;
-          min-width: 45px;
-          font-family: 'Courier New', monospace;
-        }
-
-        .toc-text {
-          flex: 1;
-        }
-
-        /* Indentation for nested chapters */
         .toc-list .toc-level-2 {
-          padding-left: 24px;
+          padding-left: 12px;
         }
 
         .toc-list .toc-level-3 {
-          padding-left: 40px;
+          padding-left: 32px;
+          font-size: 15px;
         }
 
         .toc-list .toc-level-4 {
-          padding-left: 56px;
+          padding-left: 48px;
+          font-size: 14px;
         }
 
         .toc-list .toc-level-5,
         .toc-list .toc-level-6 {
-          padding-left: 72px;
-        }
-
-        /* Main Content Area */
-        .content-area {
-          min-width: 0;
-        }
-
-        /* Author Section */
-        .author-section {
-          background: linear-gradient(135deg, #252525 0%, #1a1a1a 100%);
-          border: 2px solid rgba(100, 255, 218, 0.3);
-          border-radius: 16px;
-          padding: 32px;
-          margin-bottom: 40px;
-          display: flex;
-          gap: 24px;
-          align-items: start;
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-        }
-
-        .author-avatar-container {
-          flex-shrink: 0;
-        }
-
-        .author-avatar {
-          width: 80px;
-          height: 80px;
-          border-radius: 50%;
-          object-fit: cover;
-          border: 3px solid #64FFDA;
-          box-shadow: 0 4px 16px rgba(100, 255, 218, 0.3);
-        }
-
-        .author-avatar-placeholder {
-          width: 80px;
-          height: 80px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, #64FFDA 0%, #52d4b8 100%);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 36px;
-          font-weight: 700;
-          color: #1E1E1E;
-          border: 3px solid #64FFDA;
-          box-shadow: 0 4px 16px rgba(100, 255, 218, 0.3);
-        }
-
-        .author-info {
-          flex: 1;
-        }
-
-        .author-label {
-          font-size: 12px;
-          text-transform: uppercase;
-          letter-spacing: 2px;
-          color: #64FFDA;
-          font-weight: 600;
-          margin-bottom: 8px;
-        }
-
-        .author-name {
-          font-size: 24px;
-          font-weight: 700;
-          color: #ffffff;
-          margin-bottom: 12px;
-        }
-
-        .author-bio {
-          font-size: 15px;
-          line-height: 1.6;
-          color: #b8b8b8;
+          padding-left: 64px;
+          font-size: 13px;
         }
 
         /* Blog Content */
         .blog-content {
-          font-size: 17px;
+          font-size: 18px;
           line-height: 1.8;
-          color: #ffffff;
+          color: #333;
+          animation: fadeInUp 0.8s ease-out 0.4s both;
         }
 
-        /* Markdown Styling - Dark Theme */
+        /* Markdown Styling */
         .blog-content h1,
         .blog-content h2,
         .blog-content h3,
@@ -337,70 +188,65 @@ class MarkdownBlogViewer extends HTMLElement {
         .blog-content h6 {
           font-weight: 700;
           line-height: 1.3;
-          margin-top: 48px;
+          margin-top: 40px;
           margin-bottom: 20px;
-          color: #64FFDA;
-          letter-spacing: -0.02em;
-          scroll-margin-top: 20px;
+          color: #1a1a1a;
+          letter-spacing: -0.01em;
         }
 
         .blog-content h1 {
-          font-size: clamp(36px, 5vw, 48px);
+          font-size: clamp(32px, 4vw, 42px);
           margin-top: 60px;
-          text-shadow: 0 0 20px rgba(100, 255, 218, 0.3);
         }
 
         .blog-content h2 {
-          font-size: clamp(30px, 4vw, 38px);
-          margin-top: 52px;
+          font-size: clamp(28px, 3.5vw, 36px);
+          margin-top: 50px;
         }
 
         .blog-content h3 {
-          font-size: clamp(24px, 3.5vw, 30px);
+          font-size: clamp(24px, 3vw, 30px);
         }
 
         .blog-content h4 {
-          font-size: clamp(20px, 3vw, 24px);
+          font-size: clamp(20px, 2.5vw, 24px);
         }
 
         .blog-content h5 {
-          font-size: clamp(18px, 2.5vw, 20px);
+          font-size: clamp(18px, 2vw, 20px);
         }
 
         .blog-content h6 {
-          font-size: clamp(16px, 2vw, 18px);
+          font-size: clamp(16px, 1.8vw, 18px);
         }
 
         .blog-content p {
           margin-bottom: 24px;
-          font-size: 17px;
+          font-size: 18px;
           line-height: 1.8;
-          color: #ffffff;
         }
 
         .blog-content a {
-          color: #FFFF05;
+          color: #3498db;
           text-decoration: none;
-          border-bottom: 2px solid rgba(255, 255, 5, 0.3);
+          border-bottom: 1px solid #3498db;
           transition: all 0.3s ease;
-          font-weight: 500;
         }
 
         .blog-content a:hover {
-          border-bottom-color: #FFFF05;
-          text-shadow: 0 0 8px rgba(255, 255, 5, 0.4);
+          color: #2980b9;
+          border-bottom-color: #2980b9;
         }
 
         .blog-content strong,
         .blog-content b {
           font-weight: 700;
-          color: #64FFDA;
+          color: #1a1a1a;
         }
 
         .blog-content em,
         .blog-content i {
           font-style: italic;
-          color: #e0e0e0;
         }
 
         .blog-content ul,
@@ -412,120 +258,90 @@ class MarkdownBlogViewer extends HTMLElement {
         .blog-content li {
           margin-bottom: 12px;
           line-height: 1.8;
-          color: #ffffff;
         }
 
         .blog-content ul li {
-          list-style-type: none;
-          position: relative;
-        }
-
-        .blog-content ul li::before {
-          content: '▹';
-          position: absolute;
-          left: -20px;
-          color: #64FFDA;
-          font-weight: 700;
+          list-style-type: disc;
         }
 
         .blog-content ol li {
           list-style-type: decimal;
-          color: #64FFDA;
-        }
-
-        .blog-content ol li::marker {
-          color: #64FFDA;
-          font-weight: 700;
         }
 
         .blog-content blockquote {
           margin: 30px 0;
           padding: 20px 30px;
-          border-left: 4px solid #FFFF05;
-          background: linear-gradient(90deg, rgba(255, 255, 5, 0.1) 0%, transparent 100%);
+          border-left: 4px solid #3498db;
+          background-color: #f8f9fa;
           font-style: italic;
-          color: #FFFF05;
+          color: #555;
           border-radius: 0 8px 8px 0;
-          box-shadow: 0 4px 16px rgba(255, 255, 5, 0.1);
         }
 
         .blog-content blockquote p {
           margin-bottom: 0;
-          color: #FFFF05;
         }
 
         .blog-content code {
-          background-color: #2a2a2a;
-          padding: 4px 10px;
-          border-radius: 6px;
+          background-color: #f4f4f4;
+          padding: 3px 8px;
+          border-radius: 4px;
           font-family: 'Monaco', 'Courier New', monospace;
           font-size: 0.9em;
-          color: #64FFDA;
-          border: 1px solid rgba(100, 255, 218, 0.2);
+          color: #e74c3c;
         }
 
         .blog-content pre {
-          background: linear-gradient(135deg, #2a2a2a 0%, #1f1f1f 100%);
-          color: #ffffff;
-          padding: 24px;
-          border-radius: 12px;
+          background-color: #2d2d2d;
+          color: #f8f8f2;
+          padding: 20px;
+          border-radius: 8px;
           overflow-x: auto;
           margin: 30px 0;
-          border: 2px solid rgba(100, 255, 218, 0.2);
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
         .blog-content pre code {
           background-color: transparent;
           padding: 0;
-          color: #ffffff;
+          color: #f8f8f2;
           font-size: 14px;
-          border: none;
         }
 
         .blog-content img {
           max-width: 100%;
           height: auto;
-          border-radius: 12px;
+          border-radius: 8px;
           margin: 30px 0;
-          border: 2px solid rgba(100, 255, 218, 0.3);
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
 
         .blog-content hr {
           border: none;
-          border-top: 2px solid rgba(100, 255, 218, 0.3);
-          margin: 48px 0;
+          border-top: 2px solid #e0e0e0;
+          margin: 40px 0;
         }
 
         .blog-content table {
           width: 100%;
           border-collapse: collapse;
           margin: 30px 0;
-          border: 2px solid rgba(100, 255, 218, 0.3);
-          border-radius: 12px;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+          border-radius: 8px;
           overflow: hidden;
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
         }
 
         .blog-content table th,
         .blog-content table td {
-          padding: 16px 20px;
+          padding: 12px 16px;
           text-align: left;
-          border-bottom: 1px solid rgba(100, 255, 218, 0.2);
+          border-bottom: 1px solid #e0e0e0;
         }
 
         .blog-content table th {
-          background: linear-gradient(135deg, #2a2a2a 0%, #1f1f1f 100%);
+          background-color: #f8f9fa;
           font-weight: 700;
-          color: #64FFDA;
-          text-transform: uppercase;
-          font-size: 14px;
-          letter-spacing: 1px;
-        }
-
-        .blog-content table td {
-          color: #ffffff;
+          color: #1a1a1a;
         }
 
         .blog-content table tr:last-child td {
@@ -533,36 +349,13 @@ class MarkdownBlogViewer extends HTMLElement {
         }
 
         .blog-content table tr:hover {
-          background: rgba(100, 255, 218, 0.05);
+          background-color: #f8f9fa;
         }
 
         /* Responsive Design */
-        @media (max-width: 1024px) {
-          .blog-post-container {
-            grid-template-columns: 1fr;
-          }
-
-          .toc-sidebar {
-            position: static;
-            max-height: none;
-            margin-bottom: 32px;
-          }
-        }
-
         @media (max-width: 768px) {
-          .blog-post-wrapper {
-            padding: 16px;
-          }
-
-          .author-section {
-            flex-direction: column;
-            text-align: center;
-            align-items: center;
-            padding: 24px;
-          }
-
-          .author-info {
-            text-align: center;
+          .blog-post-container {
+            padding: 30px 16px;
           }
 
           .blog-content {
@@ -572,11 +365,20 @@ class MarkdownBlogViewer extends HTMLElement {
           .blog-content h1,
           .blog-content h2,
           .blog-content h3 {
-            margin-top: 32px;
+            margin-top: 30px;
           }
 
-          .toc-sidebar {
+          .table-of-contents {
             padding: 20px;
+            margin-bottom: 30px;
+          }
+
+          .toc-title {
+            font-size: 18px;
+          }
+
+          .toc-list a {
+            font-size: 15px;
           }
 
           .blog-content blockquote {
@@ -596,15 +398,15 @@ class MarkdownBlogViewer extends HTMLElement {
         }
 
         @media (max-width: 480px) {
-          .blog-post-wrapper {
-            padding: 12px;
+          .blog-post-container {
+            padding: 20px 12px;
           }
 
           .blog-content {
             font-size: 15px;
           }
 
-          .toc-sidebar {
+          .table-of-contents {
             padding: 16px;
           }
 
@@ -612,117 +414,47 @@ class MarkdownBlogViewer extends HTMLElement {
             font-size: 16px;
           }
 
-          .author-section {
-            padding: 20px;
-          }
-
-          .author-avatar,
-          .author-avatar-placeholder {
-            width: 64px;
-            height: 64px;
-            font-size: 28px;
-          }
-
-          .author-name {
-            font-size: 20px;
+          .toc-list a {
+            font-size: 14px;
           }
 
           .blog-content table {
-            font-size: 13px;
+            font-size: 14px;
           }
 
           .blog-content table th,
           .blog-content table td {
-            padding: 10px 12px;
+            padding: 8px 12px;
           }
-        }
-
-        /* Animations */
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        .toc-sidebar,
-        .author-section,
-        .blog-content {
-          animation: fadeInUp 0.6s ease-out both;
-        }
-
-        .author-section {
-          animation-delay: 0.1s;
-        }
-
-        .blog-content {
-          animation-delay: 0.2s;
         }
 
         /* Print Styles */
         @media print {
-          .blog-post-wrapper {
-            background: white;
-            color: black;
-          }
-
-          .toc-sidebar {
-            display: none;
-          }
-
           .blog-post-container {
-            grid-template-columns: 1fr;
+            max-width: 100%;
+            padding: 0;
           }
 
-          .blog-content h1,
-          .blog-content h2,
-          .blog-content h3,
-          .blog-content h4,
-          .blog-content h5,
-          .blog-content h6 {
-            color: black;
+          .featured-image-container {
+            box-shadow: none;
           }
 
           .blog-content a {
-            color: blue;
-            border-bottom: 1px solid blue;
+            color: #000;
+            border-bottom: none;
           }
         }
       </style>
 
-      <div class="blog-post-wrapper">
+      <div class="blog-post-container">
         <div class="loading-state" id="loading-state">
           <div class="loading-spinner"></div>
           <p class="loading-text">Loading blog post...</p>
         </div>
 
         <div id="blog-content-wrapper" style="display: none;">
-          <div class="blog-post-container">
-            <aside class="toc-sidebar" id="toc-sidebar" style="display: none;">
-              <div class="toc-header">
-                <span class="toc-icon">📚</span>
-                <h2 class="toc-title">Contents</h2>
-              </div>
-              <nav id="table-of-contents"></nav>
-            </aside>
-
-            <div class="content-area" id="content-area">
-              <div class="author-section" id="author-section" style="display: none;">
-                <div class="author-avatar-container" id="author-avatar-container"></div>
-                <div class="author-info">
-                  <div class="author-label">Written by</div>
-                  <h3 class="author-name" id="author-name"></h3>
-                  <p class="author-bio" id="author-bio"></p>
-                </div>
-              </div>
-
-              <article class="blog-content" id="blog-content"></article>
-            </div>
-          </div>
+          <div id="table-of-contents"></div>
+          <div class="blog-content" id="blog-content"></div>
         </div>
       </div>
     `;
@@ -730,79 +462,66 @@ class MarkdownBlogViewer extends HTMLElement {
     // Get DOM references
     this.loadingState = this.shadowRoot.getElementById('loading-state');
     this.contentWrapper = this.shadowRoot.getElementById('blog-content-wrapper');
-    this.tocSidebar = this.shadowRoot.getElementById('toc-sidebar');
-    this.contentArea = this.shadowRoot.getElementById('content-area');
     this.tocElement = this.shadowRoot.getElementById('table-of-contents');
     this.contentElement = this.shadowRoot.getElementById('blog-content');
-    this.authorSection = this.shadowRoot.getElementById('author-section');
-    this.authorAvatarContainer = this.shadowRoot.getElementById('author-avatar-container');
-    this.authorName = this.shadowRoot.getElementById('author-name');
-    this.authorBio = this.shadowRoot.getElementById('author-bio');
   }
 
-  // Generate Table of Contents with automatic chapter numbering
+  // Generate Table of Contents from headings
   generateTableOfContents(htmlContent) {
+    // Create a temporary div to parse the HTML
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = htmlContent;
     
+    // Find all headings (h1-h6)
     const headings = tempDiv.querySelectorAll('h1, h2, h3, h4, h5, h6');
     
     if (headings.length === 0) {
-      return null; // No headings, no TOC
+      return ''; // No headings, no TOC
     }
     
-    // Chapter numbering system
-    const chapterNumbers = [0, 0, 0, 0, 0, 0]; // h1, h2, h3, h4, h5, h6
+    // Generate unique IDs for each heading and build TOC
     const tocItems = [];
-    
     headings.forEach((heading, index) => {
-      const level = parseInt(heading.tagName.substring(1));
+      const level = parseInt(heading.tagName.substring(1)); // Get number from h1, h2, etc.
       const text = heading.textContent;
       const id = `heading-${index}`;
       
-      // Update chapter numbers
-      chapterNumbers[level - 1]++;
-      // Reset deeper levels
-      for (let i = level; i < 6; i++) {
-        chapterNumbers[i] = 0;
-      }
-      
-      // Generate chapter number string (e.g., "1.2.3")
-      let chapterNumber = '';
-      for (let i = 0; i < level; i++) {
-        if (chapterNumbers[i] > 0) {
-          chapterNumber += chapterNumbers[i] + '.';
-        }
-      }
-      chapterNumber = chapterNumber.slice(0, -1); // Remove trailing dot
-      
+      // Add ID to the heading
       heading.id = id;
       
+      // Add to TOC items
       tocItems.push({
         level: level,
         text: text,
-        id: id,
-        chapter: chapterNumber
+        id: id
       });
     });
     
+    // Update the content with IDs added to headings
     const updatedContent = tempDiv.innerHTML;
     
-    // Build TOC HTML with chapter numbers
-    let tocHtml = '<ul class="toc-list">';
+    // Build TOC HTML
+    let tocHtml = `
+      <div class="table-of-contents">
+        <div class="toc-title">
+          <span class="toc-icon">📑</span>
+          Table of Contents
+        </div>
+        <ul class="toc-list">
+    `;
     
     tocItems.forEach(item => {
       tocHtml += `
         <li class="toc-level-${item.level}">
-          <a href="#${item.id}" data-target="${item.id}">
-            <span class="toc-chapter">${item.chapter}</span>
-            <span class="toc-text">${item.text}</span>
-          </a>
+          <a href="#${item.id}">${item.text}</a>
         </li>
       `;
     });
     
-    tocHtml += '</ul>';
+    tocHtml += `
+        </ul>
+      </div>
+    `;
     
     return {
       toc: tocHtml,
@@ -810,46 +529,16 @@ class MarkdownBlogViewer extends HTMLElement {
     };
   }
 
-  // Update author section
-  updateAuthorSection() {
-    if (!this.authorSection) return;
+  // Update title (kept for compatibility but not displayed)
+  updateTitle() {
+    // Title is no longer displayed in the custom element
+    // It should be added to the Wix page separately
+  }
 
-    const hasAuthor = this.state.author || this.state.authorBio;
-    
-    if (!hasAuthor) {
-      this.authorSection.style.display = 'none';
-      return;
-    }
-
-    // Show author section
-    this.authorSection.style.display = 'flex';
-
-    // Update avatar
-    this.authorAvatarContainer.innerHTML = '';
-    if (this.state.authorAvatar) {
-      const img = document.createElement('img');
-      img.src = this.state.authorAvatar;
-      img.alt = this.state.author || 'Author';
-      img.className = 'author-avatar';
-      this.authorAvatarContainer.appendChild(img);
-    } else if (this.state.author) {
-      // Create placeholder with first letter
-      const placeholder = document.createElement('div');
-      placeholder.className = 'author-avatar-placeholder';
-      placeholder.textContent = this.state.author.charAt(0).toUpperCase();
-      this.authorAvatarContainer.appendChild(placeholder);
-    }
-
-    // Update name
-    if (this.authorName) {
-      this.authorName.textContent = this.state.author || 'Anonymous';
-    }
-
-    // Update bio
-    if (this.authorBio) {
-      this.authorBio.textContent = this.state.authorBio || '';
-      this.authorBio.style.display = this.state.authorBio ? 'block' : 'none';
-    }
+  // Update featured image (kept for compatibility but not displayed)
+  updateFeaturedImage() {
+    // Featured image is no longer displayed in the custom element
+    // It should be added to the Wix page separately
   }
 
   // Update content with Markdown rendering and automatic TOC
@@ -862,16 +551,13 @@ class MarkdownBlogViewer extends HTMLElement {
         
         if (result && result.toc) {
           this.tocElement.innerHTML = result.toc;
-          this.tocSidebar.style.display = 'block';
           this.contentElement.innerHTML = result.content;
           
           // Add smooth scroll behavior to TOC links
           this.addSmoothScrollToTOC();
-          this.setupScrollSpy();
         } else {
           // No headings found, just show content without TOC
           this.tocElement.innerHTML = '';
-          this.tocSidebar.style.display = 'none';
           this.contentElement.innerHTML = htmlContent;
         }
       } else {
@@ -882,16 +568,13 @@ class MarkdownBlogViewer extends HTMLElement {
           
           if (result && result.toc) {
             this.tocElement.innerHTML = result.toc;
-            this.tocSidebar.style.display = 'block';
             this.contentElement.innerHTML = result.content;
             
             // Add smooth scroll behavior to TOC links
             this.addSmoothScrollToTOC();
-            this.setupScrollSpy();
           } else {
             // No headings found, just show content without TOC
             this.tocElement.innerHTML = '';
-            this.tocSidebar.style.display = 'none';
             this.contentElement.innerHTML = htmlContent;
           }
         });
@@ -901,14 +584,14 @@ class MarkdownBlogViewer extends HTMLElement {
     this.hideLoading();
   }
 
-  // Add smooth scroll behavior and active state to TOC links
+  // Add smooth scroll behavior to TOC links
   addSmoothScrollToTOC() {
     const tocLinks = this.tocElement.querySelectorAll('a[href^="#"]');
     
     tocLinks.forEach(link => {
       link.addEventListener('click', (e) => {
         e.preventDefault();
-        const targetId = link.getAttribute('data-target');
+        const targetId = link.getAttribute('href').substring(1);
         const targetElement = this.contentElement.querySelector(`#${targetId}`);
         
         if (targetElement) {
@@ -917,51 +600,20 @@ class MarkdownBlogViewer extends HTMLElement {
             block: 'start'
           });
           
-          // Update active state
-          tocLinks.forEach(l => l.classList.remove('active'));
-          link.classList.add('active');
-          
-          // Highlight effect
-          targetElement.style.transition = 'all 0.3s ease';
-          targetElement.style.background = 'rgba(100, 255, 218, 0.1)';
+          // Add a highlight effect to the target heading
+          targetElement.style.transition = 'background-color 0.3s ease';
+          targetElement.style.backgroundColor = 'rgba(52, 152, 219, 0.1)';
           targetElement.style.padding = '8px';
           targetElement.style.marginLeft = '-8px';
           targetElement.style.marginRight = '-8px';
-          targetElement.style.borderRadius = '8px';
+          targetElement.style.borderRadius = '4px';
           
           setTimeout(() => {
-            targetElement.style.background = 'transparent';
+            targetElement.style.backgroundColor = 'transparent';
           }, 1500);
         }
       });
     });
-  }
-
-  // Setup scroll spy for TOC
-  setupScrollSpy() {
-    const headings = this.contentElement.querySelectorAll('[id^="heading-"]');
-    const tocLinks = this.tocElement.querySelectorAll('a[data-target]');
-    
-    if (headings.length === 0 || tocLinks.length === 0) return;
-
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          const id = entry.target.id;
-          tocLinks.forEach(link => {
-            if (link.getAttribute('data-target') === id) {
-              tocLinks.forEach(l => l.classList.remove('active'));
-              link.classList.add('active');
-            }
-          });
-        }
-      });
-    }, {
-      rootMargin: '-100px 0px -66%',
-      threshold: 0
-    });
-
-    headings.forEach(heading => observer.observe(heading));
   }
 
   // Load marked.js library dynamically
@@ -996,13 +648,13 @@ class MarkdownBlogViewer extends HTMLElement {
     });
     
     // If we already have data, update the UI
-    if (this.state.markdownContent) {
+    if (this.state.title || this.state.featuredImage || this.state.markdownContent) {
       this.hideLoading();
     }
   }
 }
 
-// Register the custom element
+// Register the custom element for Wix
 customElements.define('markdown-blog-viewer', MarkdownBlogViewer);
 
 // Wix Custom Element Export
@@ -1010,7 +662,7 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = MarkdownBlogViewer;
 }
 
-// Global registration
+// Global registration for Wix environment
 if (typeof window !== 'undefined' && window.customElements) {
   window.MarkdownBlogViewer = MarkdownBlogViewer;
 }
