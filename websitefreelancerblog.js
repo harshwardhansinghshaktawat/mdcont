@@ -64,6 +64,10 @@ class MarkdownBlogViewer extends HTMLElement {
           padding: 20px;
         }
 
+        #blog-content-wrapper {
+          width: 100%;
+        }
+
         .blog-post-container {
           max-width: 1400px;
           margin: 0 auto;
@@ -81,7 +85,8 @@ class MarkdownBlogViewer extends HTMLElement {
           min-height: 400px;
           flex-direction: column;
           gap: 20px;
-          grid-column: 1 / -1;
+          max-width: 1400px;
+          margin: 0 auto;
         }
 
         .loading-spinner {
@@ -690,31 +695,33 @@ class MarkdownBlogViewer extends HTMLElement {
       </style>
 
       <div class="blog-post-wrapper">
-        <div class="blog-post-container">
-          <div class="loading-state" id="loading-state">
-            <div class="loading-spinner"></div>
-            <p class="loading-text">Loading blog post...</p>
-          </div>
+        <div class="loading-state" id="loading-state">
+          <div class="loading-spinner"></div>
+          <p class="loading-text">Loading blog post...</p>
+        </div>
 
-          <aside class="toc-sidebar" id="toc-sidebar" style="display: none;">
-            <div class="toc-header">
-              <span class="toc-icon">📚</span>
-              <h2 class="toc-title">Contents</h2>
-            </div>
-            <nav id="table-of-contents"></nav>
-          </aside>
-
-          <div class="content-area" id="content-area" style="display: none;">
-            <div class="author-section" id="author-section" style="display: none;">
-              <div class="author-avatar-container" id="author-avatar-container"></div>
-              <div class="author-info">
-                <div class="author-label">Written by</div>
-                <h3 class="author-name" id="author-name"></h3>
-                <p class="author-bio" id="author-bio"></p>
+        <div id="blog-content-wrapper" style="display: none;">
+          <div class="blog-post-container">
+            <aside class="toc-sidebar" id="toc-sidebar" style="display: none;">
+              <div class="toc-header">
+                <span class="toc-icon">📚</span>
+                <h2 class="toc-title">Contents</h2>
               </div>
-            </div>
+              <nav id="table-of-contents"></nav>
+            </aside>
 
-            <article class="blog-content" id="blog-content"></article>
+            <div class="content-area" id="content-area">
+              <div class="author-section" id="author-section" style="display: none;">
+                <div class="author-avatar-container" id="author-avatar-container"></div>
+                <div class="author-info">
+                  <div class="author-label">Written by</div>
+                  <h3 class="author-name" id="author-name"></h3>
+                  <p class="author-bio" id="author-bio"></p>
+                </div>
+              </div>
+
+              <article class="blog-content" id="blog-content"></article>
+            </div>
           </div>
         </div>
       </div>
@@ -722,6 +729,7 @@ class MarkdownBlogViewer extends HTMLElement {
 
     // Get DOM references
     this.loadingState = this.shadowRoot.getElementById('loading-state');
+    this.contentWrapper = this.shadowRoot.getElementById('blog-content-wrapper');
     this.tocSidebar = this.shadowRoot.getElementById('toc-sidebar');
     this.contentArea = this.shadowRoot.getElementById('content-area');
     this.tocElement = this.shadowRoot.getElementById('table-of-contents');
@@ -740,7 +748,7 @@ class MarkdownBlogViewer extends HTMLElement {
     const headings = tempDiv.querySelectorAll('h1, h2, h3, h4, h5, h6');
     
     if (headings.length === 0) {
-      return { toc: '', content: htmlContent };
+      return null; // No headings, no TOC
     }
     
     // Chapter numbering system
@@ -846,44 +854,48 @@ class MarkdownBlogViewer extends HTMLElement {
 
   // Update content with Markdown rendering and automatic TOC
   updateContent() {
-    if (!this.contentElement || !this.tocElement) return;
-
-    if (typeof marked !== 'undefined' && marked && marked.parse) {
-      this.renderContent();
-    } else {
-      this.loadMarkedJS()
-        .then(() => this.renderContent())
-        .catch(error => {
-          console.error('Failed to load marked.js:', error);
-          this.contentElement.innerHTML = '<p>Error loading content</p>';
-          this.hideLoading();
+    if (this.contentElement && this.tocElement) {
+      // Use marked.js from CDN for Markdown parsing
+      if (typeof marked !== 'undefined') {
+        const htmlContent = marked.parse(this.state.markdownContent);
+        const result = this.generateTableOfContents(htmlContent);
+        
+        if (result && result.toc) {
+          this.tocElement.innerHTML = result.toc;
+          this.tocSidebar.style.display = 'block';
+          this.contentElement.innerHTML = result.content;
+          
+          // Add smooth scroll behavior to TOC links
+          this.addSmoothScrollToTOC();
+          this.setupScrollSpy();
+        } else {
+          // No headings found, just show content without TOC
+          this.tocElement.innerHTML = '';
+          this.tocSidebar.style.display = 'none';
+          this.contentElement.innerHTML = htmlContent;
+        }
+      } else {
+        // Fallback: Load marked.js dynamically
+        this.loadMarkedJS().then(() => {
+          const htmlContent = marked.parse(this.state.markdownContent);
+          const result = this.generateTableOfContents(htmlContent);
+          
+          if (result && result.toc) {
+            this.tocElement.innerHTML = result.toc;
+            this.tocSidebar.style.display = 'block';
+            this.contentElement.innerHTML = result.content;
+            
+            // Add smooth scroll behavior to TOC links
+            this.addSmoothScrollToTOC();
+            this.setupScrollSpy();
+          } else {
+            // No headings found, just show content without TOC
+            this.tocElement.innerHTML = '';
+            this.tocSidebar.style.display = 'none';
+            this.contentElement.innerHTML = htmlContent;
+          }
         });
-    }
-  }
-
-  // Render the content
-  renderContent() {
-    if (typeof marked === 'undefined' || !marked || !marked.parse) {
-      console.error('Marked.js not loaded');
-      this.contentElement.innerHTML = '<p>Error: Markdown parser not loaded</p>';
-      this.hideLoading();
-      return;
-    }
-
-    const htmlContent = marked.parse(this.state.markdownContent);
-    const result = this.generateTableOfContents(htmlContent);
-    
-    if (result && result.toc) {
-      this.tocElement.innerHTML = result.toc;
-      this.tocSidebar.style.display = 'block';
-      this.contentElement.innerHTML = result.content;
-      
-      this.addSmoothScrollToTOC();
-      this.setupScrollSpy();
-    } else {
-      this.tocElement.innerHTML = '';
-      this.tocSidebar.style.display = 'none';
-      this.contentElement.innerHTML = htmlContent;
+      }
     }
     
     this.hideLoading();
@@ -955,49 +967,38 @@ class MarkdownBlogViewer extends HTMLElement {
   // Load marked.js library dynamically
   loadMarkedJS() {
     return new Promise((resolve, reject) => {
-      if (typeof marked !== 'undefined' && marked && marked.parse) {
+      if (typeof marked !== 'undefined') {
         resolve();
         return;
       }
       
       const script = document.createElement('script');
       script.src = 'https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js';
-      script.onload = () => {
-        if (typeof marked !== 'undefined' && marked && marked.parse) {
-          resolve();
-        } else {
-          reject(new Error('Marked.js loaded but not initialized properly'));
-        }
-      };
-      script.onerror = () => reject(new Error('Failed to load marked.js from CDN'));
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Failed to load marked.js'));
       document.head.appendChild(script);
     });
   }
 
   // Hide loading state and show content
   hideLoading() {
-    if (this.loadingState && this.contentArea) {
+    if (this.loadingState && this.contentWrapper) {
       this.loadingState.style.display = 'none';
-      this.contentArea.style.display = 'block';
+      this.contentWrapper.style.display = 'block';
     }
   }
 
   // Connected callback
   connectedCallback() {
-    this.loadMarkedJS()
-      .then(() => {
-        console.log('Marked.js loaded successfully');
-        if (this.state.markdownContent) {
-          this.updateContent();
-        }
-      })
-      .catch(error => {
-        console.error('Error loading marked.js:', error);
-        if (this.contentElement) {
-          this.contentElement.innerHTML = '<p style="color: #ff6b6b;">Error: Failed to load Markdown parser. Please refresh the page.</p>';
-        }
-        this.hideLoading();
-      });
+    // Load marked.js when component is connected
+    this.loadMarkedJS().catch(error => {
+      console.error('Error loading marked.js:', error);
+    });
+    
+    // If we already have data, update the UI
+    if (this.state.markdownContent) {
+      this.hideLoading();
+    }
   }
 }
 
