@@ -363,6 +363,7 @@ class MarkdownBlogViewer extends HTMLElement {
           margin: 40px 0;
         }
 
+        /* Table Styling */
         .blog-content table {
           width: 100%;
           border-collapse: collapse;
@@ -370,6 +371,7 @@ class MarkdownBlogViewer extends HTMLElement {
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
           border-radius: 8px;
           overflow: hidden;
+          background-color: #2d2d2d;
         }
 
         .blog-content table th,
@@ -377,12 +379,22 @@ class MarkdownBlogViewer extends HTMLElement {
           padding: 12px 16px;
           text-align: left;
           border-bottom: 1px solid #3d3d3d;
+          color: #ffffff;
         }
 
         .blog-content table th {
-          background-color: #2d2d2d;
+          background-color: #1a1a1a;
           font-weight: 700;
           color: #64FFDA;
+          border-bottom: 2px solid #64FFDA;
+        }
+
+        .blog-content table tbody tr {
+          background-color: #2d2d2d;
+        }
+
+        .blog-content table tbody tr:nth-child(even) {
+          background-color: #252525;
         }
 
         .blog-content table tr:last-child td {
@@ -390,7 +402,55 @@ class MarkdownBlogViewer extends HTMLElement {
         }
 
         .blog-content table tr:hover {
+          background-color: #333333;
+        }
+
+        /* iframe and embedded content styling */
+        .blog-content iframe {
+          max-width: 100%;
+          margin: 30px 0;
+          border-radius: 8px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+          display: block;
+        }
+
+        /* YouTube embed styling */
+        .blog-content iframe[src*="youtube.com"],
+        .blog-content iframe[src*="youtu.be"] {
+          width: 100%;
+          aspect-ratio: 16 / 9;
+          height: auto;
+          min-height: 400px;
+        }
+
+        /* Generic video embed container */
+        .blog-content .video-container {
+          position: relative;
+          padding-bottom: 56.25%; /* 16:9 aspect ratio */
+          height: 0;
+          overflow: hidden;
+          margin: 30px 0;
+          border-radius: 8px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .blog-content .video-container iframe {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          margin: 0;
+          border-radius: 8px;
+        }
+
+        /* HTML embed container */
+        .blog-content .embed-container {
+          margin: 30px 0;
+          padding: 20px;
           background-color: #2d2d2d;
+          border-radius: 8px;
+          border: 1px solid #3d3d3d;
         }
 
         /* Responsive Design */
@@ -440,6 +500,18 @@ class MarkdownBlogViewer extends HTMLElement {
           .blog-content ol {
             padding-left: 20px;
           }
+
+          .blog-content iframe[src*="youtube.com"],
+          .blog-content iframe[src*="youtu.be"] {
+            min-height: 250px;
+          }
+
+          .blog-content table {
+            font-size: 14px;
+            display: block;
+            overflow-x: auto;
+            white-space: nowrap;
+          }
         }
 
         @media (max-width: 480px) {
@@ -467,13 +539,15 @@ class MarkdownBlogViewer extends HTMLElement {
             font-size: 14px;
           }
 
-          .blog-content table {
-            font-size: 14px;
-          }
-
           .blog-content table th,
           .blog-content table td {
             padding: 8px 12px;
+            font-size: 13px;
+          }
+
+          .blog-content iframe[src*="youtube.com"],
+          .blog-content iframe[src*="youtu.be"] {
+            min-height: 200px;
           }
         }
 
@@ -491,6 +565,10 @@ class MarkdownBlogViewer extends HTMLElement {
           .blog-content a {
             color: #000;
             border-bottom: none;
+          }
+
+          .blog-content iframe {
+            display: none;
           }
         }
       </style>
@@ -537,7 +615,6 @@ class MarkdownBlogViewer extends HTMLElement {
       // Add error handler
       img.addEventListener('error', function() {
         console.error(`Failed to load image: ${this.src}`);
-        // Try alternative loading method
         this.style.display = 'none';
       });
       
@@ -551,7 +628,6 @@ class MarkdownBlogViewer extends HTMLElement {
         img.setAttribute('loading', 'lazy');
       }
       
-      // If the src is relative or doesn't have protocol, it might need fixing
       if (originalSrc && !originalSrc.startsWith('http') && !originalSrc.startsWith('//')) {
         console.warn(`Image has relative URL: ${originalSrc}`);
       }
@@ -560,11 +636,9 @@ class MarkdownBlogViewer extends HTMLElement {
 
   // Generate Table of Contents from headings
   generateTableOfContents(htmlContent) {
-    // Create a temporary div to parse the HTML
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = htmlContent;
     
-    // Find all headings (h1-h6)
     const headings = tempDiv.querySelectorAll('h1, h2, h3, h4, h5, h6');
     
     if (headings.length === 0) {
@@ -574,7 +648,6 @@ class MarkdownBlogViewer extends HTMLElement {
       };
     }
     
-    // Generate unique IDs for each heading and build TOC
     const tocItems = [];
     headings.forEach((heading, index) => {
       const level = parseInt(heading.tagName.substring(1));
@@ -592,7 +665,6 @@ class MarkdownBlogViewer extends HTMLElement {
     
     const updatedContent = tempDiv.innerHTML;
     
-    // Build TOC HTML
     let tocHtml = `
       <div class="table-of-contents">
         <div class="toc-title">
@@ -631,7 +703,7 @@ class MarkdownBlogViewer extends HTMLElement {
     // Links
     html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2">$1</a>');
     
-    // Headers (must be on their own line)
+    // Headers
     html = html.replace(/^######\s+(.*)$/gim, '<h6>$1</h6>');
     html = html.replace(/^#####\s+(.*)$/gim, '<h5>$1</h5>');
     html = html.replace(/^####\s+(.*)$/gim, '<h4>$1</h4>');
@@ -671,13 +743,11 @@ class MarkdownBlogViewer extends HTMLElement {
       this.featuredImageElement.src = this.state.featuredImage;
       this.featuredImageContainer.style.display = 'block';
       
-      // Add error handler
       this.featuredImageElement.addEventListener('error', () => {
         console.error('Failed to load featured image:', this.state.featuredImage);
         this.featuredImageContainer.style.display = 'none';
       });
       
-      // Add load handler
       this.featuredImageElement.addEventListener('load', () => {
         console.log('Featured image loaded successfully:', this.state.featuredImage);
       });
@@ -701,20 +771,22 @@ class MarkdownBlogViewer extends HTMLElement {
       return;
     }
 
-    // Wait for marked to be loaded
     this.loadMarkedJS()
       .then(() => {
         console.log('Marked.js loaded, parsing content...');
         let htmlContent;
         
-        // Try to use marked, fall back to simple parser
         try {
           if (window.marked && window.marked.parse) {
-            // Configure marked options
+            // Configure marked options to allow HTML and enable tables
             if (window.marked.setOptions) {
               window.marked.setOptions({
                 breaks: true,
-                gfm: true
+                gfm: true,
+                tables: true,
+                sanitize: false,  // Allow raw HTML (for iframes, embeds, etc.)
+                headerIds: true,
+                mangle: false
               });
             }
             // eslint-disable-next-line no-undef
@@ -740,9 +812,10 @@ class MarkdownBlogViewer extends HTMLElement {
           this.contentElement.innerHTML = result.content;
         }
         
-        // Fix images after content is rendered
+        // Fix images and process embeds after content is rendered
         setTimeout(() => {
           this.fixImages();
+          this.processEmbeds();
         }, 100);
         
         console.log('Content updated successfully');
@@ -750,7 +823,6 @@ class MarkdownBlogViewer extends HTMLElement {
       })
       .catch(error => {
         console.error('Error in updateContent:', error);
-        // Use fallback parser
         const htmlContent = this.simpleMarkdownParse(this.state.markdownContent);
         const result = this.generateTableOfContents(htmlContent);
         
@@ -762,13 +834,36 @@ class MarkdownBlogViewer extends HTMLElement {
           this.contentElement.innerHTML = result.content;
         }
         
-        // Fix images after content is rendered
         setTimeout(() => {
           this.fixImages();
+          this.processEmbeds();
         }, 100);
         
         this.hideLoading();
       });
+  }
+
+  // Process embedded content (iframes, videos)
+  processEmbeds() {
+    const iframes = this.contentElement.querySelectorAll('iframe');
+    console.log(`Found ${iframes.length} iframes to process`);
+    
+    iframes.forEach((iframe, index) => {
+      console.log(`Processing iframe ${index}:`, iframe.src);
+      
+      // Ensure iframe has proper attributes
+      if (!iframe.hasAttribute('frameborder')) {
+        iframe.setAttribute('frameborder', '0');
+      }
+      if (!iframe.hasAttribute('allowfullscreen')) {
+        iframe.setAttribute('allowfullscreen', '');
+      }
+      
+      // Add loading attribute
+      if (!iframe.hasAttribute('loading')) {
+        iframe.setAttribute('loading', 'lazy');
+      }
+    });
   }
 
   // Add smooth scroll behavior to TOC links
@@ -853,12 +948,10 @@ class MarkdownBlogViewer extends HTMLElement {
   connectedCallback() {
     console.log('Custom element connected to DOM');
     
-    // Load marked.js when component is connected
     this.loadMarkedJS().catch(error => {
       console.error('Error loading marked.js:', error);
     });
     
-    // Check if we have content from attributes
     const cmsContent = this.getAttribute('cms-markdown-content');
     const cmsFeaturedImage = this.getAttribute('cms-featured-image');
     
