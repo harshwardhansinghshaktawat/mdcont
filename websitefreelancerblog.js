@@ -1,3 +1,6 @@
+/* eslint-disable no-undef */
+/* global marked */
+
 class MarkdownBlogViewer extends HTMLElement {
   constructor() {
     super();
@@ -731,9 +734,20 @@ class MarkdownBlogViewer extends HTMLElement {
         // Ensure marked.js is loaded first
         await this.loadMarkedJS();
         
-        // Now use marked to parse content
+        // Double-check marked is available
+        const markedLib = window.marked || (typeof marked !== 'undefined' ? marked : null);
+        
+        if (!markedLib || typeof markedLib.parse !== 'function') {
+          throw new Error('marked.js library not available after loading');
+        }
+        
         console.log('🔄 Parsing markdown with marked.js...');
-        const htmlContent = window.marked.parse(this.state.markdownContent);
+        const htmlContent = markedLib.parse(this.state.markdownContent);
+        
+        if (!htmlContent) {
+          throw new Error('Failed to parse markdown content');
+        }
+        
         const result = this.generateTableOfContents(htmlContent);
         
         if (result && result.toc) {
@@ -751,10 +765,19 @@ class MarkdownBlogViewer extends HTMLElement {
         }
       } catch (error) {
         console.error('❌ Error updating content:', error);
+        console.error('❌ Error stack:', error.stack);
+        console.error('❌ window.marked available?', typeof window.marked !== 'undefined');
+        console.error('❌ global marked available?', typeof marked !== 'undefined');
+        
         this.contentElement.innerHTML = `
-          <div style="padding: 20px; background: #2a2a2a; border-left: 4px solid #e74c3c; color: #e74c3c;">
-            <strong>Error rendering content</strong><br>
-            ${error.message}
+          <div style="padding: 20px; background: #2a2a2a; border-left: 4px solid #e74c3c; color: #fff; border-radius: 4px;">
+            <h3 style="color: #e74c3c; margin-top: 0;">Error Rendering Content</h3>
+            <p><strong>Error:</strong> ${error.message}</p>
+            <p style="font-size: 14px; color: #bbb;">Please refresh the page. If the problem persists, contact support.</p>
+            <details style="margin-top: 10px; font-size: 13px; color: #999;">
+              <summary style="cursor: pointer;">Technical Details</summary>
+              <pre style="background: #1a1a1a; padding: 10px; border-radius: 4px; overflow-x: auto; margin-top: 5px;">${error.stack || 'No stack trace available'}</pre>
+            </details>
           </div>
         `;
       }
@@ -798,8 +821,17 @@ class MarkdownBlogViewer extends HTMLElement {
   // Load marked.js library dynamically
   loadMarkedJS() {
     return new Promise((resolve, reject) => {
-      // Check if marked is already loaded
-      if (typeof window.marked !== 'undefined') {
+      // Check if marked is already loaded (check multiple places)
+      if (typeof window.marked !== 'undefined' && window.marked.parse) {
+        console.log('✓ marked.js already loaded (window.marked)');
+        resolve();
+        return;
+      }
+      
+      // Check global scope as fallback
+      if (typeof marked !== 'undefined' && marked.parse) {
+        console.log('✓ marked.js already loaded (global marked)');
+        window.marked = marked;
         resolve();
         return;
       }
@@ -807,19 +839,58 @@ class MarkdownBlogViewer extends HTMLElement {
       // Check if script is already being loaded
       const existingScript = document.querySelector('script[src*="marked"]');
       if (existingScript) {
-        existingScript.addEventListener('load', () => resolve());
-        existingScript.addEventListener('error', () => reject(new Error('Failed to load marked.js')));
+        console.log('⏳ marked.js script already exists, waiting for load...');
+        
+        // Wait for it to load with timeout
+        let attempts = 0;
+        const checkLoaded = setInterval(() => {
+          attempts++;
+          if (typeof window.marked !== 'undefined' && window.marked.parse) {
+            clearInterval(checkLoaded);
+            console.log('✓ marked.js loaded via existing script');
+            resolve();
+          } else if (typeof marked !== 'undefined' && marked.parse) {
+            clearInterval(checkLoaded);
+            window.marked = marked;
+            console.log('✓ marked.js loaded via existing script (global)');
+            resolve();
+          } else if (attempts > 50) { // 5 seconds timeout
+            clearInterval(checkLoaded);
+            reject(new Error('Timeout waiting for marked.js to load'));
+          }
+        }, 100);
         return;
       }
       
-      // Load the script
+      // Load the script fresh
+      console.log('📥 Loading marked.js from CDN...');
       const script = document.createElement('script');
       script.src = 'https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js';
+      
       script.onload = () => {
-        console.log('✓ marked.js loaded successfully');
-        resolve();
+        console.log('✓ marked.js script loaded');
+        
+        // Wait a bit and check if it's available
+        setTimeout(() => {
+          if (typeof window.marked !== 'undefined' && window.marked.parse) {
+            console.log('✓ window.marked is available');
+            resolve();
+          } else if (typeof marked !== 'undefined' && marked.parse) {
+            console.log('✓ marked is available globally, assigning to window');
+            window.marked = marked;
+            resolve();
+          } else {
+            console.error('❌ marked.js loaded but not accessible');
+            reject(new Error('marked.js loaded but not accessible'));
+          }
+        }, 100);
       };
-      script.onerror = () => reject(new Error('Failed to load marked.js'));
+      
+      script.onerror = () => {
+        console.error('❌ Failed to load marked.js from CDN');
+        reject(new Error('Failed to load marked.js from CDN'));
+      };
+      
       document.head.appendChild(script);
     });
   }
@@ -834,20 +905,52 @@ class MarkdownBlogViewer extends HTMLElement {
 
   // Connected callback
   async connectedCallback() {
+    console.log('🔌 Custom element connected to DOM');
+    
     // Load marked.js when component is connected
     try {
+      console.log('📥 Loading markdown parser...');
       await this.loadMarkedJS();
       console.log('✓ Markdown parser ready');
       
+      // Check if marked is truly available
+      const markedLib = window.marked || (typeof marked !== 'undefined' ? marked : null);
+      if (markedLib && typeof markedLib.parse === 'function') {
+        console.log('✓ marked.parse() is available');
+      } else {
+        console.warn('⚠️ marked loaded but parse function not found');
+      }
+      
       // If we already have markdown content, update the UI
       if (this.state.markdownContent) {
-        this.updateContent();
+        console.log('📄 Markdown content already present, updating...');
+        await this.updateContent();
+      } else {
+        console.log('⏳ Waiting for markdown content from CMS...');
       }
     } catch (error) {
       console.error('❌ Error loading marked.js:', error);
+      console.error('❌ Full error:', error.stack);
+      
       // Show error message to user
       if (this.contentElement) {
-        this.contentElement.innerHTML = '<p style="color: #e74c3c;">Error loading Markdown parser. Please refresh the page.</p>';
+        this.contentElement.innerHTML = `
+          <div style="padding: 20px; background: #2a2a2a; border-left: 4px solid #e74c3c; color: #fff; border-radius: 4px;">
+            <h3 style="color: #e74c3c; margin-top: 0;">Failed to Load Markdown Parser</h3>
+            <p><strong>Error:</strong> ${error.message}</p>
+            <p style="font-size: 14px; color: #bbb;">
+              The blog content cannot be displayed. This may be due to:
+            </p>
+            <ul style="font-size: 14px; color: #bbb; padding-left: 20px;">
+              <li>Network connectivity issues</li>
+              <li>CDN blocking or firewall restrictions</li>
+              <li>Ad blocker interference</li>
+            </ul>
+            <p style="font-size: 14px; color: #bbb;">
+              Please try refreshing the page or disabling your ad blocker.
+            </p>
+          </div>
+        `;
       }
       this.hideLoading();
     }
