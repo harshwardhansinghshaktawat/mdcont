@@ -17,7 +17,7 @@ class MarkdownBlogViewer extends HTMLElement {
 
   // CMS Integration - Observed attributes
   static get observedAttributes() {
-    return ['cms-markdown-content'];
+    return ['cms-markdown-content', 'cms-title', 'cms-featured-image'];
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
@@ -28,6 +28,12 @@ class MarkdownBlogViewer extends HTMLElement {
     if (name === 'cms-markdown-content') {
       this.state.markdownContent = newValue;
       this.updateContent();
+    } else if (name === 'cms-title') {
+      this.state.title = newValue;
+      this.updateTitle();
+    } else if (name === 'cms-featured-image') {
+      this.state.featuredImage = newValue;
+      this.updateFeaturedImage();
     }
   }
 
@@ -114,6 +120,34 @@ class MarkdownBlogViewer extends HTMLElement {
           }
         }
 
+        /* Blog Title */
+        .blog-title {
+          font-size: clamp(36px, 5vw, 52px);
+          font-weight: 700;
+          color: #64FFDA;
+          margin: 0 0 30px 0;
+          line-height: 1.2;
+          letter-spacing: -0.02em;
+          animation: fadeInUp 0.6s ease-out;
+        }
+
+        /* Featured Image */
+        .featured-image-container {
+          width: 100%;
+          margin-bottom: 40px;
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+          animation: fadeInUp 0.6s ease-out 0.2s both;
+        }
+
+        .featured-image {
+          width: 100%;
+          height: auto;
+          display: block;
+          object-fit: cover;
+        }
+
         /* Table of Contents */
         .table-of-contents {
           background-color: #2d2d2d;
@@ -121,7 +155,7 @@ class MarkdownBlogViewer extends HTMLElement {
           border-radius: 8px;
           padding: 24px;
           margin-bottom: 40px;
-          animation: fadeInUp 0.6s ease-out;
+          animation: fadeInUp 0.6s ease-out 0.4s both;
         }
 
         .toc-title {
@@ -190,7 +224,7 @@ class MarkdownBlogViewer extends HTMLElement {
           font-size: 18px;
           line-height: 1.8;
           color: #ffffff;
-          animation: fadeInUp 0.8s ease-out 0.4s both;
+          animation: fadeInUp 0.8s ease-out 0.6s both;
         }
 
         /* Markdown Styling */
@@ -380,6 +414,15 @@ class MarkdownBlogViewer extends HTMLElement {
             padding: 30px 16px;
           }
 
+          .blog-title {
+            font-size: clamp(28px, 6vw, 40px);
+            margin-bottom: 24px;
+          }
+
+          .featured-image-container {
+            margin-bottom: 30px;
+          }
+
           .blog-content {
             font-size: 16px;
           }
@@ -422,6 +465,15 @@ class MarkdownBlogViewer extends HTMLElement {
         @media (max-width: 480px) {
           .blog-post-container {
             padding: 20px 12px;
+          }
+
+          .blog-title {
+            font-size: clamp(24px, 7vw, 32px);
+            margin-bottom: 20px;
+          }
+
+          .featured-image-container {
+            margin-bottom: 24px;
           }
 
           .blog-content {
@@ -479,6 +531,10 @@ class MarkdownBlogViewer extends HTMLElement {
         </div>
 
         <div id="blog-content-wrapper" style="display: none;">
+          <h1 class="blog-title" id="blog-title"></h1>
+          <div class="featured-image-container" id="featured-image-container" style="display: none;">
+            <img class="featured-image" id="featured-image" alt="Blog featured image" />
+          </div>
           <div id="table-of-contents"></div>
           <div class="blog-content" id="blog-content"></div>
         </div>
@@ -489,6 +545,9 @@ class MarkdownBlogViewer extends HTMLElement {
     this.loadingState = this.shadowRoot.getElementById('loading-state');
     this.errorState = this.shadowRoot.getElementById('error-state');
     this.contentWrapper = this.shadowRoot.getElementById('blog-content-wrapper');
+    this.titleElement = this.shadowRoot.getElementById('blog-title');
+    this.featuredImageContainer = this.shadowRoot.getElementById('featured-image-container');
+    this.featuredImageElement = this.shadowRoot.getElementById('featured-image');
     this.tocElement = this.shadowRoot.getElementById('table-of-contents');
     this.contentElement = this.shadowRoot.getElementById('blog-content');
   }
@@ -631,6 +690,35 @@ class MarkdownBlogViewer extends HTMLElement {
     html = html.replace(/<p>\s*<\/p>/g, '');
     
     return html;
+  }
+
+  // Update title
+  updateTitle() {
+    if (this.titleElement && this.state.title) {
+      this.titleElement.textContent = this.state.title;
+      console.log('Title updated:', this.state.title);
+    }
+  }
+
+  // Update featured image
+  updateFeaturedImage() {
+    if (this.featuredImageElement && this.featuredImageContainer && this.state.featuredImage) {
+      this.featuredImageElement.src = this.state.featuredImage;
+      this.featuredImageContainer.style.display = 'block';
+      
+      // Add error handler
+      this.featuredImageElement.addEventListener('error', () => {
+        console.error('Failed to load featured image:', this.state.featuredImage);
+        this.featuredImageContainer.style.display = 'none';
+      });
+      
+      // Add load handler
+      this.featuredImageElement.addEventListener('load', () => {
+        console.log('Featured image loaded successfully:', this.state.featuredImage);
+      });
+      
+      console.log('Featured image updated:', this.state.featuredImage);
+    }
   }
 
   // Update content with Markdown rendering and automatic TOC
@@ -807,11 +895,26 @@ class MarkdownBlogViewer extends HTMLElement {
     
     // Check if we have content from attributes
     const cmsContent = this.getAttribute('cms-markdown-content');
+    const cmsTitle = this.getAttribute('cms-title');
+    const cmsFeaturedImage = this.getAttribute('cms-featured-image');
+    
     console.log('Initial cms-markdown-content:', cmsContent ? cmsContent.substring(0, 100) : 'not set');
+    console.log('Initial cms-title:', cmsTitle || 'not set');
+    console.log('Initial cms-featured-image:', cmsFeaturedImage || 'not set');
     
     if (cmsContent) {
       this.state.markdownContent = cmsContent;
       this.updateContent();
+    }
+    
+    if (cmsTitle) {
+      this.state.title = cmsTitle;
+      this.updateTitle();
+    }
+    
+    if (cmsFeaturedImage) {
+      this.state.featuredImage = cmsFeaturedImage;
+      this.updateFeaturedImage();
     }
   }
 }
