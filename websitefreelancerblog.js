@@ -326,9 +326,16 @@ class MarkdownBlogViewer extends HTMLElement {
           max-width: 100%;
           height: auto;
           border-radius: 8px;
-          margin: 30px 0;
+          margin: 30px auto;
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
           display: block;
+          background-color: #2d2d2d;
+          padding: 4px;
+        }
+
+        .blog-content img[src=""],
+        .blog-content img:not([src]) {
+          display: none;
         }
 
         .blog-content hr {
@@ -486,6 +493,39 @@ class MarkdownBlogViewer extends HTMLElement {
     this.contentElement = this.shadowRoot.getElementById('blog-content');
   }
 
+  // Fix image URLs and add error handling
+  fixImages() {
+    const images = this.contentElement.querySelectorAll('img');
+    console.log(`Found ${images.length} images to process`);
+    
+    images.forEach((img, index) => {
+      const originalSrc = img.getAttribute('src');
+      console.log(`Image ${index}: ${originalSrc}`);
+      
+      // Add error handler
+      img.addEventListener('error', function() {
+        console.error(`Failed to load image: ${this.src}`);
+        // Try alternative loading method
+        this.style.display = 'none';
+      });
+      
+      // Add load handler
+      img.addEventListener('load', function() {
+        console.log(`Successfully loaded image: ${this.src}`);
+      });
+      
+      // Ensure the image has proper attributes
+      if (!img.hasAttribute('loading')) {
+        img.setAttribute('loading', 'lazy');
+      }
+      
+      // If the src is relative or doesn't have protocol, it might need fixing
+      if (originalSrc && !originalSrc.startsWith('http') && !originalSrc.startsWith('//')) {
+        console.warn(`Image has relative URL: ${originalSrc}`);
+      }
+    });
+  }
+
   // Generate Table of Contents from headings
   generateTableOfContents(htmlContent) {
     // Create a temporary div to parse the HTML
@@ -554,7 +594,7 @@ class MarkdownBlogViewer extends HTMLElement {
     let html = markdown;
     
     // Images - Must come before links
-    html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/gim, '<img src="$2" alt="$1" />');
+    html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/gim, '<img src="$2" alt="$1" loading="lazy" />');
     
     // Links
     html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2">$1</a>');
@@ -647,6 +687,11 @@ class MarkdownBlogViewer extends HTMLElement {
           this.contentElement.innerHTML = result.content;
         }
         
+        // Fix images after content is rendered
+        setTimeout(() => {
+          this.fixImages();
+        }, 100);
+        
         console.log('Content updated successfully');
         this.hideLoading();
       })
@@ -663,6 +708,11 @@ class MarkdownBlogViewer extends HTMLElement {
           this.tocElement.innerHTML = '';
           this.contentElement.innerHTML = result.content;
         }
+        
+        // Fix images after content is rendered
+        setTimeout(() => {
+          this.fixImages();
+        }, 100);
         
         this.hideLoading();
       });
