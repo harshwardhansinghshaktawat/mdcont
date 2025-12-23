@@ -328,6 +328,7 @@ class MarkdownBlogViewer extends HTMLElement {
           border-radius: 8px;
           margin: 30px 0;
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+          display: block;
         }
 
         .blog-content hr {
@@ -552,23 +553,42 @@ class MarkdownBlogViewer extends HTMLElement {
   simpleMarkdownParse(markdown) {
     let html = markdown;
     
-    // Headers
-    html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
-    html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
-    html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
-    
-    // Bold
-    html = html.replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>');
-    
-    // Italic
-    html = html.replace(/\*(.*?)\*/gim, '<em>$1</em>');
+    // Images - Must come before links
+    html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/gim, '<img src="$2" alt="$1" />');
     
     // Links
     html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2">$1</a>');
     
-    // Line breaks
-    html = html.replace(/\n\n/g, '</p><p>');
+    // Headers (must be on their own line)
+    html = html.replace(/^######\s+(.*)$/gim, '<h6>$1</h6>');
+    html = html.replace(/^#####\s+(.*)$/gim, '<h5>$1</h5>');
+    html = html.replace(/^####\s+(.*)$/gim, '<h4>$1</h4>');
+    html = html.replace(/^###\s+(.*)$/gim, '<h3>$1</h3>');
+    html = html.replace(/^##\s+(.*)$/gim, '<h2>$1</h2>');
+    html = html.replace(/^#\s+(.*)$/gim, '<h1>$1</h1>');
+    
+    // Bold
+    html = html.replace(/\*\*([^\*]+)\*\*/gim, '<strong>$1</strong>');
+    html = html.replace(/__([^_]+)__/gim, '<strong>$1</strong>');
+    
+    // Italic
+    html = html.replace(/\*([^\*]+)\*/gim, '<em>$1</em>');
+    html = html.replace(/_([^_]+)_/gim, '<em>$1</em>');
+    
+    // Code blocks
+    html = html.replace(/```([^`]+)```/gim, '<pre><code>$1</code></pre>');
+    
+    // Inline code
+    html = html.replace(/`([^`]+)`/gim, '<code>$1</code>');
+    
+    // Line breaks and paragraphs
+    html = html.replace(/\n\n+/g, '</p><p>');
+    html = html.replace(/\n/g, '<br>');
     html = '<p>' + html + '</p>';
+    
+    // Clean up empty paragraphs
+    html = html.replace(/<p><\/p>/g, '');
+    html = html.replace(/<p>\s*<\/p>/g, '');
     
     return html;
   }
@@ -597,8 +617,16 @@ class MarkdownBlogViewer extends HTMLElement {
         // Try to use marked, fall back to simple parser
         try {
           if (window.marked && window.marked.parse) {
+            // Configure marked options
+            if (window.marked.setOptions) {
+              window.marked.setOptions({
+                breaks: true,
+                gfm: true
+              });
+            }
             // eslint-disable-next-line no-undef
             htmlContent = marked.parse(this.state.markdownContent);
+            console.log('Parsed with marked.js');
           } else {
             console.warn('marked.parse not available, using fallback parser');
             htmlContent = this.simpleMarkdownParse(this.state.markdownContent);
