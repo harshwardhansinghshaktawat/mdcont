@@ -3,7 +3,6 @@ class MarkdownBlogViewer extends HTMLElement {
     super();
     this.attachShadow({ mode: 'open' });
 
-    // State management
     this.state = {
       featuredImage: '',
       markdownContent: '',
@@ -17,7 +16,6 @@ class MarkdownBlogViewer extends HTMLElement {
     this.initializeUI();
   }
 
-  // CMS Integration - Observed attributes
   static get observedAttributes() {
     return ['cms-markdown-content', 'cms-featured-image', 'cms-title'];
   }
@@ -38,7 +36,6 @@ class MarkdownBlogViewer extends HTMLElement {
     }
   }
 
-  // Queue content update to ensure marked.js is loaded first
   queueContentUpdate() {
     console.log('🔄 Queueing content update...');
     
@@ -51,7 +48,6 @@ class MarkdownBlogViewer extends HTMLElement {
     }, 100);
   }
 
-  // Initialize the UI components with beautiful, modern design
   initializeUI() {
     this.shadowRoot.innerHTML = `
       <style>
@@ -76,7 +72,6 @@ class MarkdownBlogViewer extends HTMLElement {
           min-height: 400px;
         }
 
-        /* Loading State */
         .loading-state {
           display: flex;
           justify-content: center;
@@ -125,16 +120,6 @@ class MarkdownBlogViewer extends HTMLElement {
           }
         }
 
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-
-        /* Featured Image */
         .featured-image-container {
           width: 100%;
           margin-bottom: 40px;
@@ -151,7 +136,6 @@ class MarkdownBlogViewer extends HTMLElement {
           object-fit: cover;
         }
 
-        /* Table of Contents */
         .table-of-contents {
           background-color: #2d2d2d;
           border: 2px solid #3d3d3d;
@@ -202,27 +186,12 @@ class MarkdownBlogViewer extends HTMLElement {
           background-color: rgba(100, 255, 218, 0.05);
         }
 
-        .toc-list .toc-level-2 {
-          padding-left: 12px;
-        }
-
-        .toc-list .toc-level-3 {
-          padding-left: 32px;
-          font-size: 15px;
-        }
-
-        .toc-list .toc-level-4 {
-          padding-left: 48px;
-          font-size: 14px;
-        }
-
+        .toc-list .toc-level-2 { padding-left: 12px; }
+        .toc-list .toc-level-3 { padding-left: 32px; font-size: 15px; }
+        .toc-list .toc-level-4 { padding-left: 48px; font-size: 14px; }
         .toc-list .toc-level-5,
-        .toc-list .toc-level-6 {
-          padding-left: 64px;
-          font-size: 13px;
-        }
+        .toc-list .toc-level-6 { padding-left: 64px; font-size: 13px; }
 
-        /* Blog Content */
         .blog-content {
           font-size: 18px;
           line-height: 1.8;
@@ -230,7 +199,6 @@ class MarkdownBlogViewer extends HTMLElement {
           animation: fadeInUp 0.8s ease-out 0.6s both;
         }
 
-        /* Markdown Styling */
         .blog-content h1,
         .blog-content h2,
         .blog-content h3,
@@ -245,31 +213,12 @@ class MarkdownBlogViewer extends HTMLElement {
           letter-spacing: -0.01em;
         }
 
-        .blog-content h1 {
-          font-size: clamp(32px, 4vw, 42px);
-          margin-top: 60px;
-        }
-
-        .blog-content h2 {
-          font-size: clamp(28px, 3.5vw, 36px);
-          margin-top: 50px;
-        }
-
-        .blog-content h3 {
-          font-size: clamp(24px, 3vw, 30px);
-        }
-
-        .blog-content h4 {
-          font-size: clamp(20px, 2.5vw, 24px);
-        }
-
-        .blog-content h5 {
-          font-size: clamp(18px, 2vw, 20px);
-        }
-
-        .blog-content h6 {
-          font-size: clamp(16px, 1.8vw, 18px);
-        }
+        .blog-content h1 { font-size: clamp(32px, 4vw, 42px); margin-top: 60px; }
+        .blog-content h2 { font-size: clamp(28px, 3.5vw, 36px); margin-top: 50px; }
+        .blog-content h3 { font-size: clamp(24px, 3vw, 30px); }
+        .blog-content h4 { font-size: clamp(20px, 2.5vw, 24px); }
+        .blog-content h5 { font-size: clamp(18px, 2vw, 20px); }
+        .blog-content h6 { font-size: clamp(16px, 1.8vw, 18px); }
 
         .blog-content p {
           margin-bottom: 24px;
@@ -311,13 +260,8 @@ class MarkdownBlogViewer extends HTMLElement {
           line-height: 1.8;
         }
 
-        .blog-content ul li {
-          list-style-type: disc;
-        }
-
-        .blog-content ol li {
-          list-style-type: decimal;
-        }
+        .blog-content ul li { list-style-type: disc; }
+        .blog-content ol li { list-style-type: decimal; }
 
         .blog-content blockquote {
           margin: 30px 0;
@@ -359,7 +303,6 @@ class MarkdownBlogViewer extends HTMLElement {
           font-size: 14px;
         }
 
-        /* Image Styling - IMPROVED */
         .blog-content img {
           max-width: 100%;
           height: auto;
@@ -371,7 +314,6 @@ class MarkdownBlogViewer extends HTMLElement {
           padding: 4px;
         }
 
-        /* Image captions (em tags after images) */
         .blog-content img + em {
           display: block;
           text-align: center;
@@ -382,23 +324,10 @@ class MarkdownBlogViewer extends HTMLElement {
           font-style: italic;
         }
 
-        /* Show broken images with error message */
         .blog-content img.image-error {
           border: 2px dashed #ff4444;
           min-height: 150px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          position: relative;
           background-color: #2d2d2d;
-        }
-
-        .blog-content img.image-error::before {
-          content: '🖼️ Image failed to load';
-          position: absolute;
-          color: #ff4444;
-          font-size: 16px;
-          font-weight: 600;
         }
 
         .blog-content hr {
@@ -407,7 +336,6 @@ class MarkdownBlogViewer extends HTMLElement {
           margin: 40px 0;
         }
 
-        /* Table Styling - CRITICAL FOR RENDERING */
         .blog-content table {
           width: 100%;
           border-collapse: collapse;
@@ -427,28 +355,17 @@ class MarkdownBlogViewer extends HTMLElement {
           color: #ffffff;
         }
 
-        .blog-content table thead {
-          display: table-header-group !important;
-        }
-
-        .blog-content table tbody {
-          display: table-row-group !important;
-        }
-
-        .blog-content table tr {
-          display: table-row !important;
-        }
+        .blog-content table thead { display: table-header-group !important; }
+        .blog-content table tbody { display: table-row-group !important; }
+        .blog-content table tr { display: table-row !important; }
+        .blog-content table th { display: table-cell !important; }
+        .blog-content table td { display: table-cell !important; }
 
         .blog-content table th {
           background-color: #1a1a1a;
           font-weight: 700;
           color: #64FFDA;
           border-bottom: 2px solid #64FFDA;
-          display: table-cell !important;
-        }
-
-        .blog-content table td {
-          display: table-cell !important;
         }
 
         .blog-content table tbody tr {
@@ -467,107 +384,14 @@ class MarkdownBlogViewer extends HTMLElement {
           background-color: #333333;
         }
 
-        /* iframe and embedded content styling */
-        .blog-content iframe {
-          max-width: 100%;
-          margin: 30px 0;
-          border-radius: 8px;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-          display: block;
-        }
-
-        /* YouTube embed styling */
-        .blog-content iframe[src*="youtube.com"],
-        .blog-content iframe[src*="youtu.be"] {
-          width: 100%;
-          aspect-ratio: 16 / 9;
-          height: auto;
-          min-height: 400px;
-        }
-
-        /* Generic video embed container */
-        .blog-content .video-container {
-          position: relative;
-          padding-bottom: 56.25%;
-          height: 0;
-          overflow: hidden;
-          margin: 30px 0;
-          border-radius: 8px;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        }
-
-        .blog-content .video-container iframe {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          margin: 0;
-          border-radius: 8px;
-        }
-
-        /* HTML embed container */
-        .blog-content .embed-container {
-          margin: 30px 0;
-          padding: 20px;
-          background-color: #2d2d2d;
-          border-radius: 8px;
-          border: 1px solid #3d3d3d;
-        }
-
-        /* Responsive Design */
         @media (max-width: 768px) {
-          .blog-post-container {
-            padding: 30px 16px;
-          }
-
-          .featured-image-container {
-            margin-bottom: 30px;
-          }
-
-          .blog-content {
-            font-size: 16px;
-          }
-
-          .blog-content h1,
-          .blog-content h2,
-          .blog-content h3 {
-            margin-top: 30px;
-          }
-
-          .table-of-contents {
-            padding: 20px;
-            margin-bottom: 30px;
-          }
-
-          .toc-title {
-            font-size: 18px;
-          }
-
-          .toc-list a {
-            font-size: 15px;
-          }
-
-          .blog-content blockquote {
-            padding: 16px 20px;
-            margin: 20px 0;
-          }
-
-          .blog-content pre {
-            padding: 16px;
-            font-size: 13px;
-          }
-
-          .blog-content ul,
-          .blog-content ol {
-            padding-left: 20px;
-          }
-
-          .blog-content iframe[src*="youtube.com"],
-          .blog-content iframe[src*="youtu.be"] {
-            min-height: 250px;
-          }
-
+          .blog-post-container { padding: 30px 16px; }
+          .featured-image-container { margin-bottom: 30px; }
+          .blog-content { font-size: 16px; }
+          .blog-content h1, .blog-content h2, .blog-content h3 { margin-top: 30px; }
+          .table-of-contents { padding: 20px; margin-bottom: 30px; }
+          .toc-title { font-size: 18px; }
+          .toc-list a { font-size: 15px; }
           .blog-content table {
             font-size: 14px;
             display: block !important;
@@ -577,60 +401,16 @@ class MarkdownBlogViewer extends HTMLElement {
         }
 
         @media (max-width: 480px) {
-          .blog-post-container {
-            padding: 20px 12px;
-          }
-
-          .featured-image-container {
-            margin-bottom: 24px;
-          }
-
-          .blog-content {
-            font-size: 15px;
-          }
-
-          .table-of-contents {
-            padding: 16px;
-          }
-
-          .toc-title {
-            font-size: 16px;
-          }
-
-          .toc-list a {
-            font-size: 14px;
-          }
-
+          .blog-post-container { padding: 20px 12px; }
+          .featured-image-container { margin-bottom: 24px; }
+          .blog-content { font-size: 15px; }
+          .table-of-contents { padding: 16px; }
+          .toc-title { font-size: 16px; }
+          .toc-list a { font-size: 14px; }
           .blog-content table th,
           .blog-content table td {
             padding: 8px 12px;
             font-size: 13px;
-          }
-
-          .blog-content iframe[src*="youtube.com"],
-          .blog-content iframe[src*="youtu.be"] {
-            min-height: 200px;
-          }
-        }
-
-        /* Print Styles */
-        @media print {
-          .blog-post-container {
-            max-width: 100%;
-            padding: 0;
-          }
-
-          .featured-image-container {
-            box-shadow: none;
-          }
-
-          .blog-content a {
-            color: #000;
-            border-bottom: none;
-          }
-
-          .blog-content iframe {
-            display: none;
           }
         }
       </style>
@@ -655,7 +435,6 @@ class MarkdownBlogViewer extends HTMLElement {
       </div>
     `;
 
-    // Get DOM references
     this.loadingState = this.shadowRoot.getElementById('loading-state');
     this.errorState = this.shadowRoot.getElementById('error-state');
     this.contentWrapper = this.shadowRoot.getElementById('blog-content-wrapper');
@@ -665,178 +444,55 @@ class MarkdownBlogViewer extends HTMLElement {
     this.contentElement = this.shadowRoot.getElementById('blog-content');
   }
 
-  // ===================================
-  // SOLUTION 3: URL PROTECTION METHODS
-  // ===================================
-
-  /**
-   * Preprocess markdown to protect URLs from being corrupted by markdown parser
-   * This is crucial for Wix image URLs that contain underscores
-   */
-  preprocessMarkdown(markdown) {
-    console.log('🔧 Preprocessing markdown to protect URLs...');
+  // SIMPLIFIED: Just use HTML img tags directly - no placeholder needed
+  preprocessMarkdownImages(markdown) {
+    console.log('🔧 Converting markdown images to HTML...');
     
-    // Find all image URLs and temporarily replace them with placeholders
     const imagePattern = /!\[([^\]]*)\]\(([^)]+)\)/g;
-    const urlMap = new Map();
-    let counter = 0;
+    let imageCount = 0;
     
     const processed = markdown.replace(imagePattern, (match, alt, url) => {
-      // Create unique placeholder for this URL
-      const placeholder = `__IMAGE_URL_PLACEHOLDER_${counter}__`;
-      urlMap.set(placeholder, url);
-      counter++;
+      imageCount++;
+      console.log(`  Image ${imageCount}: ${url.substring(0, 60)}...`);
       
-      console.log(`  Protected image ${counter}: ${url.substring(0, 50)}...`);
-      
-      // Return markdown with placeholder
-      return `![${alt}](${placeholder})`;
+      // Convert directly to HTML img tag - bypasses all markdown processing
+      return `<img src="${url}" alt="${alt}" loading="lazy" />`;
     });
     
-    console.log(`✓ Protected ${urlMap.size} image URL(s) from corruption`);
-    
-    return { processed, urlMap };
+    console.log(`✓ Converted ${imageCount} image(s) to HTML tags`);
+    return processed;
   }
 
-  /**
-   * Restore original URLs after markdown parsing is complete
-   */
-  restoreImageUrls(html, urlMap) {
-    if (urlMap.size === 0) {
-      console.log('No URLs to restore');
-      return html;
-    }
-    
-    console.log('🔄 Restoring original image URLs...');
-    let restored = html;
-    
-    urlMap.forEach((originalUrl, placeholder) => {
-      // Replace placeholder with original URL
-      restored = restored.replace(new RegExp(placeholder, 'g'), originalUrl);
-      console.log(`  Restored: ${originalUrl.substring(0, 50)}...`);
-    });
-    
-    console.log('✓ All image URLs restored successfully');
-    return restored;
-  }
-
-  // ===================================
-  // END URL PROTECTION METHODS
-  // ===================================
-
-  // IMPROVED: Fix image URLs and add comprehensive error handling
   fixImages() {
     const images = this.contentElement.querySelectorAll('img');
-    console.log(`\n🖼️ IMAGE DEBUG:`);
-    console.log(`Found ${images.length} images to process`);
-    
-    if (images.length === 0) {
-      console.log('⚠️ No images found in rendered HTML');
-      if (this.state.markdownContent.includes('![')) {
-        console.log('❌ Markdown contains images but they were not rendered');
-        console.log('Sample markdown:', this.state.markdownContent.substring(0, 500));
-      }
-      return;
-    }
+    console.log(`\n🖼️ IMAGE DEBUG: Found ${images.length} images`);
     
     images.forEach((img, index) => {
       const originalSrc = img.getAttribute('src');
       const altText = img.getAttribute('alt') || 'No alt text';
       
-      console.log(`\nImage ${index + 1}:`, {
-        src: originalSrc,
-        alt: altText
-      });
+      console.log(`Image ${index + 1}:`, originalSrc);
       
-      // Enhanced error handler - Shows error instead of hiding
-      img.addEventListener('error', function(e) {
+      img.addEventListener('error', function() {
         console.error(`❌ Failed to load image ${index + 1}:`, this.src);
-        console.error('Error details:', {
-          type: e.type,
-          currentSrc: this.currentSrc,
-          naturalWidth: this.naturalWidth,
-          naturalHeight: this.naturalHeight
-        });
-        
-        // Add error class for styling
         this.classList.add('image-error');
-        
-        // Update alt text to show error
-        this.alt = `[Failed to load: ${altText}]`;
-        
-        // Set a minimum height so the error is visible
         this.style.minHeight = '150px';
-        this.style.display = 'block';
-        
-        // Check for common issues
-        if (this.src.includes('wixstatic.com')) {
-          console.log('💡 This is a Wix media URL - check if image exists in Media Manager');
-          
-          // Check if underscore is missing (common parsing issue)
-          if (!this.src.includes('_') && originalSrc && originalSrc.includes('_')) {
-            console.error('⚠️ UNDERSCORE MISSING! URL was corrupted during parsing');
-            console.error('Expected underscore in URL but found none');
-          }
-        }
       });
       
-      // Enhanced load handler
       img.addEventListener('load', function() {
-        console.log(`✅ Successfully loaded image ${index + 1}:`, {
-          src: this.src,
-          width: this.naturalWidth,
-          height: this.naturalHeight
-        });
-        
-        // Remove error class if it was added
-        this.classList.remove('image-error');
+        console.log(`✅ Successfully loaded image ${index + 1}`);
       });
       
-      // Set loading attribute
       if (!img.hasAttribute('loading')) {
         img.setAttribute('loading', 'lazy');
       }
       
-      // Check URL validity
-      if (!originalSrc || originalSrc === '') {
-        console.error(`❌ Image ${index + 1} has empty src attribute`);
-        img.classList.add('image-error');
-        img.alt = '[Missing image URL]';
-      } else if (!originalSrc.startsWith('http') && !originalSrc.startsWith('//')) {
-        console.warn(`⚠️ Image ${index + 1} has relative URL:`, originalSrc);
-        console.log('💡 Try using absolute URLs starting with https://');
-      }
-      
-      // Check for placeholder remnants (shouldn't happen but good to check)
-      if (originalSrc && originalSrc.includes('__IMAGE_URL_PLACEHOLDER_')) {
-        console.error(`❌ CRITICAL: Placeholder not restored for image ${index + 1}!`);
-        console.error('This is a bug in the URL restoration process');
-      }
-      
-      // Add CORS attribute for external images
       if (originalSrc && (originalSrc.includes('wixstatic.com') || originalSrc.includes('unsplash.com'))) {
         img.setAttribute('crossorigin', 'anonymous');
-        console.log(`✓ Added CORS attribute to image ${index + 1}`);
-      }
-      
-      // Decode HTML entities in src if present
-      if (originalSrc && originalSrc.includes('&')) {
-        const parser = new DOMParser();
-        const decodedUrl = parser.parseFromString(originalSrc, 'text/html').body.textContent;
-        if (decodedUrl !== originalSrc) {
-          console.log(`🔄 Decoded URL for image ${index + 1}:`, decodedUrl);
-          img.src = decodedUrl;
-        }
       }
     });
-    
-    // Summary
-    console.log(`\n📊 Image Processing Summary:`);
-    console.log(`Total images: ${images.length}`);
-    console.log(`Check console above for individual image status`);
   }
 
-  // Generate Table of Contents from headings
   generateTableOfContents(htmlContent) {
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = htmlContent;
@@ -844,10 +500,7 @@ class MarkdownBlogViewer extends HTMLElement {
     const headings = tempDiv.querySelectorAll('h1, h2, h3, h4, h5, h6');
     
     if (headings.length === 0) {
-      return {
-        toc: '',
-        content: htmlContent
-      };
+      return { toc: '', content: htmlContent };
     }
     
     const tocItems = [];
@@ -857,12 +510,7 @@ class MarkdownBlogViewer extends HTMLElement {
       const id = `heading-${index}`;
       
       heading.id = id;
-      
-      tocItems.push({
-        level: level,
-        text: text,
-        id: id
-      });
+      tocItems.push({ level, text, id });
     });
     
     const updatedContent = tempDiv.innerHTML;
@@ -877,33 +525,21 @@ class MarkdownBlogViewer extends HTMLElement {
     `;
     
     tocItems.forEach(item => {
-      tocHtml += `
-        <li class="toc-level-${item.level}">
-          <a href="#${item.id}">${item.text}</a>
-        </li>
-      `;
+      tocHtml += `<li class="toc-level-${item.level}"><a href="#${item.id}">${item.text}</a></li>`;
     });
     
-    tocHtml += `
-        </ul>
-      </div>
-    `;
+    tocHtml += `</ul></div>`;
     
-    return {
-      toc: tocHtml,
-      content: updatedContent
-    };
+    return { toc: tocHtml, content: updatedContent };
   }
 
-  // Parse markdown to HTML with TABLE support (fallback if marked.js fails)
   simpleMarkdownParse(markdown) {
     let html = markdown;
     
-    // Parse tables first
+    // Tables first
     html = this.parseMarkdownTables(html);
     
-    // Images - Must come before links
-    html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/gim, '<img src="$2" alt="$1" loading="lazy" />');
+    // Images are already HTML - skip
     
     // Links
     html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2">$1</a>');
@@ -930,19 +566,15 @@ class MarkdownBlogViewer extends HTMLElement {
     // Inline code
     html = html.replace(/`([^`]+)`/gim, '<code>$1</code>');
     
-    // Line breaks and paragraphs
+    // Paragraphs
     html = html.replace(/\n\n+/g, '</p><p>');
     html = html.replace(/\n/g, '<br>');
     html = '<p>' + html + '</p>';
-    
-    // Clean up empty paragraphs
     html = html.replace(/<p><\/p>/g, '');
-    html = html.replace(/<p>\s*<\/p>/g, '');
     
     return html;
   }
 
-  // Parse Markdown Tables
   parseMarkdownTables(markdown) {
     const lines = markdown.split('\n');
     let result = [];
@@ -954,7 +586,6 @@ class MarkdownBlogViewer extends HTMLElement {
       
       if (line.includes('|')) {
         const cells = line.split('|').map(cell => cell.trim()).filter(cell => cell);
-        
         const nextLine = lines[i + 1] ? lines[i + 1].trim() : '';
         const isSeparator = /^[\s\|:-]+$/.test(nextLine);
         
@@ -966,7 +597,7 @@ class MarkdownBlogViewer extends HTMLElement {
         } else if (inTable && cells.length > 0) {
           const dataCells = cells.map(cell => `<td>${cell}</td>`).join('');
           tableRows.push(`<tr>${dataCells}</tr>`);
-        } else if (!inTable && cells.length > 0 && !isSeparator) {
+        } else if (!inTable) {
           result.push(line);
         }
       } else {
@@ -980,7 +611,7 @@ class MarkdownBlogViewer extends HTMLElement {
       }
     }
     
-    if (inTable && tableRows.length > 0) {
+    if (inTable) {
       tableRows.push('</tbody>');
       result.push(`<table>${tableRows.join('')}</table>`);
     }
@@ -988,89 +619,58 @@ class MarkdownBlogViewer extends HTMLElement {
     return result.join('\n');
   }
 
-  // Update featured image
   updateFeaturedImage() {
     if (this.featuredImageElement && this.featuredImageContainer && this.state.featuredImage) {
       this.featuredImageElement.src = this.state.featuredImage;
       this.featuredImageContainer.style.display = 'block';
       
       this.featuredImageElement.addEventListener('error', () => {
-        console.error('❌ Failed to load featured image:', this.state.featuredImage);
+        console.error('❌ Failed to load featured image');
         this.featuredImageContainer.style.display = 'none';
       });
       
       this.featuredImageElement.addEventListener('load', () => {
-        console.log('✅ Featured image loaded successfully:', this.state.featuredImage);
+        console.log('✅ Featured image loaded');
       });
-      
-      console.log('Featured image set:', this.state.featuredImage);
     }
   }
 
-  // Update content with Markdown rendering and automatic TOC
   updateContent() {
-    console.log('🎯 updateContent called, content length:', this.state.markdownContent.length);
+    console.log('🎯 updateContent called');
     
-    if (!this.contentElement || !this.tocElement) {
-      console.error('❌ Content elements not found');
-      return;
-    }
-
-    if (!this.state.markdownContent) {
-      console.log('⚠️ No markdown content available');
-      this.showError('No content available');
+    if (!this.contentElement || !this.state.markdownContent) {
       return;
     }
 
     this.loadMarkedJS()
       .then(() => {
-        console.log('✅ Marked.js ready, parsing content...');
+        console.log('✅ Parsing content...');
         let htmlContent;
         
         try {
-          // ========================================
-          // CRITICAL: PREPROCESS TO PROTECT URLs
-          // ========================================
-          const { processed, urlMap } = this.preprocessMarkdown(this.state.markdownContent);
+          // CRITICAL: Convert images to HTML BEFORE any parsing
+          const preprocessed = this.preprocessMarkdownImages(this.state.markdownContent);
           
-          if (window.marked && window.marked.parse) {
+          if (window.marked && typeof window.marked === 'function') {
+            // Try using marked as a function
+            htmlContent = window.marked(preprocessed);
+            console.log('✅ Parsed with marked.js');
+          } else if (window.marked && window.marked.parse) {
             marked.use({
               breaks: true,
               gfm: true,
               headerIds: true,
-              mangle: false,
-              pedantic: false
+              mangle: false
             });
-            
-            // Parse the protected markdown
-            htmlContent = marked.parse(processed);
-            
-            // ========================================
-            // CRITICAL: RESTORE ORIGINAL URLs
-            // ========================================
-            htmlContent = this.restoreImageUrls(htmlContent, urlMap);
-            
-            console.log('✅ Parsed with marked.js and URLs restored');
-            
-            const tableCount = (htmlContent.match(/<table/g) || []).length;
-            const imageCount = (htmlContent.match(/<img/g) || []).length;
-            console.log(`📊 Content analysis: ${tableCount} tables, ${imageCount} images`);
-            
-            if (tableCount === 0 && this.state.markdownContent.includes('|')) {
-              console.warn('⚠️ Markdown contains pipes but no tables generated');
-            }
-            
-            if (imageCount === 0 && this.state.markdownContent.includes('![')) {
-              console.warn('⚠️ Markdown contains image syntax but no images generated');
-            }
+            htmlContent = marked.parse(preprocessed);
+            console.log('✅ Parsed with marked.parse()');
           } else {
-            console.warn('⚠️ marked.parse not available, using fallback parser');
-            htmlContent = this.simpleMarkdownParse(processed);
-            htmlContent = this.restoreImageUrls(htmlContent, urlMap);
+            console.warn('⚠️ Using fallback parser');
+            htmlContent = this.simpleMarkdownParse(preprocessed);
           }
         } catch (error) {
-          console.error('❌ Error parsing markdown:', error);
-          htmlContent = this.simpleMarkdownParse(this.state.markdownContent);
+          console.error('❌ Parse error:', error);
+          htmlContent = this.simpleMarkdownParse(this.preprocessMarkdownImages(this.state.markdownContent));
         }
         
         const result = this.generateTableOfContents(htmlContent);
@@ -1086,111 +686,40 @@ class MarkdownBlogViewer extends HTMLElement {
         
         setTimeout(() => {
           this.fixImages();
-          this.processEmbeds();
           this.debugTables();
         }, 100);
         
-        console.log('✅ Content updated successfully');
+        console.log('✅ Content updated');
         this.hideLoading();
       })
       .catch(error => {
-        console.error('❌ Error in updateContent:', error);
-        const htmlContent = this.simpleMarkdownParse(this.state.markdownContent);
-        const result = this.generateTableOfContents(htmlContent);
-        
-        if (result.toc) {
-          this.tocElement.innerHTML = result.toc;
-          this.contentElement.innerHTML = result.content;
-        } else {
-          this.tocElement.innerHTML = '';
-          this.contentElement.innerHTML = result.content;
-        }
-        
-        setTimeout(() => {
-          this.fixImages();
-          this.processEmbeds();
-          this.debugTables();
-        }, 100);
-        
+        console.error('❌ Error:', error);
         this.hideLoading();
       });
   }
 
-  // Debug table rendering
   debugTables() {
     const tables = this.contentElement.querySelectorAll('table');
-    console.log(`\n📊 TABLE DEBUG:`);
-    console.log(`Found ${tables.length} table(s)`);
-    
-    if (tables.length === 0 && this.state.markdownContent.includes('|')) {
-      console.log('⚠️ Markdown has pipes but no tables rendered');
-    }
-    
-    tables.forEach((table, index) => {
-      const computed = window.getComputedStyle(table);
-      console.log(`\nTable ${index + 1}:`, {
-        rows: table.querySelectorAll('tr').length,
-        headers: table.querySelectorAll('th').length,
-        cells: table.querySelectorAll('td').length,
-        display: computed.display,
-        visibility: computed.visibility
-      });
-    });
+    console.log(`📊 Found ${tables.length} table(s)`);
   }
 
-  // Process embedded content
-  processEmbeds() {
-    const iframes = this.contentElement.querySelectorAll('iframe');
-    console.log(`Found ${iframes.length} iframes`);
-    
-    iframes.forEach((iframe, index) => {
-      if (!iframe.hasAttribute('frameborder')) {
-        iframe.setAttribute('frameborder', '0');
-      }
-      if (!iframe.hasAttribute('allowfullscreen')) {
-        iframe.setAttribute('allowfullscreen', '');
-      }
-      if (!iframe.hasAttribute('loading')) {
-        iframe.setAttribute('loading', 'lazy');
-      }
-    });
-  }
-
-  // Add smooth scroll to TOC
   addSmoothScrollToTOC() {
     const tocLinks = this.tocElement.querySelectorAll('a[href^="#"]');
-    
     tocLinks.forEach(link => {
       link.addEventListener('click', (e) => {
         e.preventDefault();
         const targetId = link.getAttribute('href').substring(1);
         const targetElement = this.contentElement.querySelector(`#${targetId}`);
-        
         if (targetElement) {
-          targetElement.scrollIntoView({
-            behavior: 'smooth',
-            block: 'start'
-          });
-          
-          targetElement.style.transition = 'background-color 0.3s ease';
-          targetElement.style.backgroundColor = 'rgba(100, 255, 218, 0.1)';
-          targetElement.style.padding = '8px';
-          targetElement.style.marginLeft = '-8px';
-          targetElement.style.marginRight = '-8px';
-          targetElement.style.borderRadius = '4px';
-          
-          setTimeout(() => {
-            targetElement.style.backgroundColor = 'transparent';
-          }, 1500);
+          targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       });
     });
   }
 
-  // Load marked.js library
   loadMarkedJS() {
     return new Promise((resolve, reject) => {
-      if (window.marked && window.marked.parse) {
+      if (window.marked) {
         console.log('✅ marked.js already loaded');
         this.markedLoaded = true;
         resolve();
@@ -1198,31 +727,29 @@ class MarkdownBlogViewer extends HTMLElement {
       }
       
       if (this.markedLoading) {
-        console.log('⏳ marked.js is loading...');
         const checkInterval = setInterval(() => {
-          if (window.marked && window.marked.parse) {
+          if (window.marked) {
             clearInterval(checkInterval);
-            this.markedLoaded = true;
             resolve();
           }
         }, 100);
         return;
       }
       
-      console.log('📥 Loading marked.js from CDN...');
+      console.log('📥 Loading marked.js...');
       this.markedLoading = true;
       
       const script = document.createElement('script');
       script.src = 'https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js';
       script.async = true;
       script.onload = () => {
-        console.log('✅ marked.js loaded successfully');
+        console.log('✅ marked.js loaded');
         this.markedLoaded = true;
         this.markedLoading = false;
         resolve();
       };
-      script.onerror = (error) => {
-        console.error('❌ Failed to load marked.js:', error);
+      script.onerror = () => {
+        console.error('❌ Failed to load marked.js');
         this.markedLoading = false;
         reject(new Error('Failed to load marked.js'));
       };
@@ -1230,7 +757,6 @@ class MarkdownBlogViewer extends HTMLElement {
     });
   }
 
-  // Show error
   showError(message) {
     if (this.errorState) {
       this.errorState.textContent = message;
@@ -1241,31 +767,21 @@ class MarkdownBlogViewer extends HTMLElement {
     }
   }
 
-  // Hide loading
   hideLoading() {
-    console.log('Hiding loading state');
     if (this.loadingState && this.contentWrapper) {
       this.loadingState.style.display = 'none';
       this.contentWrapper.style.display = 'block';
     }
   }
 
-  // Connected callback
   connectedCallback() {
-    console.log('🎬 Custom element connected to DOM');
+    console.log('🎬 Custom element connected');
     
-    this.loadMarkedJS().catch(error => {
-      console.error('Error loading marked.js:', error);
-    });
+    this.loadMarkedJS().catch(error => console.error('Error loading marked.js:', error));
     
     const cmsContent = this.getAttribute('cms-markdown-content');
     const cmsFeaturedImage = this.getAttribute('cms-featured-image');
     const cmsTitle = this.getAttribute('cms-title');
-    
-    console.log('📋 Initial attributes:');
-    console.log('  - Title:', cmsTitle || 'not set');
-    console.log('  - Content:', cmsContent ? `${cmsContent.length} chars` : 'not set');
-    console.log('  - Image:', cmsFeaturedImage || 'not set');
     
     if (cmsContent) {
       this.state.markdownContent = cmsContent;
@@ -1283,10 +799,8 @@ class MarkdownBlogViewer extends HTMLElement {
   }
 }
 
-// Register custom element
 customElements.define('markdown-blog-viewer', MarkdownBlogViewer);
 
-// Wix exports
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = MarkdownBlogViewer;
 }
