@@ -7,16 +7,19 @@ class MarkdownBlogViewer extends HTMLElement {
     this.state = {
       featuredImage: '',
       markdownContent: '',
+      title: '',
       isLoading: true
     };
 
     this.markedLoaded = false;
+    this.markedLoading = false;
+    this.contentQueue = null;
     this.initializeUI();
   }
 
   // CMS Integration - Observed attributes
   static get observedAttributes() {
-    return ['cms-markdown-content', 'cms-featured-image'];
+    return ['cms-markdown-content', 'cms-featured-image', 'cms-title'];
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
@@ -26,11 +29,26 @@ class MarkdownBlogViewer extends HTMLElement {
 
     if (name === 'cms-markdown-content') {
       this.state.markdownContent = newValue;
-      this.updateContent();
+      this.queueContentUpdate();
     } else if (name === 'cms-featured-image') {
       this.state.featuredImage = newValue;
       this.updateFeaturedImage();
+    } else if (name === 'cms-title') {
+      this.state.title = newValue;
     }
+  }
+
+  // Queue content update to ensure marked.js is loaded first
+  queueContentUpdate() {
+    console.log('🔄 Queueing content update...');
+    
+    if (this.contentQueue) {
+      clearTimeout(this.contentQueue);
+    }
+    
+    this.contentQueue = setTimeout(() => {
+      this.updateContent();
+    }, 100);
   }
 
   // Initialize the UI components with beautiful, modern design
@@ -341,6 +359,7 @@ class MarkdownBlogViewer extends HTMLElement {
           font-size: 14px;
         }
 
+        /* Image Styling - IMPROVED */
         .blog-content img {
           max-width: 100%;
           height: auto;
@@ -352,9 +371,34 @@ class MarkdownBlogViewer extends HTMLElement {
           padding: 4px;
         }
 
-        .blog-content img[src=""],
-        .blog-content img:not([src]) {
-          display: none;
+        /* Image captions (em tags after images) */
+        .blog-content img + em {
+          display: block;
+          text-align: center;
+          font-size: 14px;
+          color: #999;
+          margin-top: -20px;
+          margin-bottom: 20px;
+          font-style: italic;
+        }
+
+        /* Show broken images with error message */
+        .blog-content img.image-error {
+          border: 2px dashed #ff4444;
+          min-height: 150px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          position: relative;
+          background-color: #2d2d2d;
+        }
+
+        .blog-content img.image-error::before {
+          content: '🖼️ Image failed to load';
+          position: absolute;
+          color: #ff4444;
+          font-size: 16px;
+          font-weight: 600;
         }
 
         .blog-content hr {
@@ -363,7 +407,7 @@ class MarkdownBlogViewer extends HTMLElement {
           margin: 40px 0;
         }
 
-        /* Table Styling */
+        /* Table Styling - CRITICAL FOR RENDERING */
         .blog-content table {
           width: 100%;
           border-collapse: collapse;
@@ -372,7 +416,7 @@ class MarkdownBlogViewer extends HTMLElement {
           border-radius: 8px;
           overflow: hidden;
           background-color: #2d2d2d;
-          display: table;
+          display: table !important;
         }
 
         .blog-content table th,
@@ -383,11 +427,28 @@ class MarkdownBlogViewer extends HTMLElement {
           color: #ffffff;
         }
 
+        .blog-content table thead {
+          display: table-header-group !important;
+        }
+
+        .blog-content table tbody {
+          display: table-row-group !important;
+        }
+
+        .blog-content table tr {
+          display: table-row !important;
+        }
+
         .blog-content table th {
           background-color: #1a1a1a;
           font-weight: 700;
           color: #64FFDA;
           border-bottom: 2px solid #64FFDA;
+          display: table-cell !important;
+        }
+
+        .blog-content table td {
+          display: table-cell !important;
         }
 
         .blog-content table tbody tr {
@@ -427,7 +488,7 @@ class MarkdownBlogViewer extends HTMLElement {
         /* Generic video embed container */
         .blog-content .video-container {
           position: relative;
-          padding-bottom: 56.25%; /* 16:9 aspect ratio */
+          padding-bottom: 56.25%;
           height: 0;
           overflow: hidden;
           margin: 30px 0;
@@ -509,7 +570,7 @@ class MarkdownBlogViewer extends HTMLElement {
 
           .blog-content table {
             font-size: 14px;
-            display: block;
+            display: block !important;
             overflow-x: auto;
             white-space: nowrap;
           }
@@ -604,35 +665,104 @@ class MarkdownBlogViewer extends HTMLElement {
     this.contentElement = this.shadowRoot.getElementById('blog-content');
   }
 
-  // Fix image URLs and add error handling
+  // IMPROVED: Fix image URLs and add comprehensive error handling
   fixImages() {
     const images = this.contentElement.querySelectorAll('img');
+    console.log(`\n🖼️ IMAGE DEBUG:`);
     console.log(`Found ${images.length} images to process`);
+    
+    if (images.length === 0) {
+      console.log('⚠️ No images found in rendered HTML');
+      if (this.state.markdownContent.includes('![')) {
+        console.log('❌ Markdown contains images but they were not rendered');
+        console.log('Sample markdown:', this.state.markdownContent.substring(0, 500));
+      }
+      return;
+    }
     
     images.forEach((img, index) => {
       const originalSrc = img.getAttribute('src');
-      console.log(`Image ${index}: ${originalSrc}`);
+      const altText = img.getAttribute('alt') || 'No alt text';
       
-      // Add error handler
-      img.addEventListener('error', function() {
-        console.error(`Failed to load image: ${this.src}`);
-        this.style.display = 'none';
+      console.log(`\nImage ${index + 1}:`, {
+        src: originalSrc,
+        alt: altText
       });
       
-      // Add load handler
+      // Enhanced error handler - Shows error instead of hiding
+      img.addEventListener('error', function(e) {
+        console.error(`❌ Failed to load image ${index + 1}:`, this.src);
+        console.error('Error details:', {
+          type: e.type,
+          currentSrc: this.currentSrc,
+          naturalWidth: this.naturalWidth,
+          naturalHeight: this.naturalHeight
+        });
+        
+        // Add error class for styling
+        this.classList.add('image-error');
+        
+        // Update alt text to show error
+        this.alt = `[Failed to load: ${altText}]`;
+        
+        // Set a minimum height so the error is visible
+        this.style.minHeight = '150px';
+        this.style.display = 'block';
+        
+        // Try to determine the error type
+        if (this.src.includes('wixstatic.com')) {
+          console.log('💡 This is a Wix media URL - check if image exists in Media Manager');
+        }
+      });
+      
+      // Enhanced load handler
       img.addEventListener('load', function() {
-        console.log(`Successfully loaded image: ${this.src}`);
+        console.log(`✅ Successfully loaded image ${index + 1}:`, {
+          src: this.src,
+          width: this.naturalWidth,
+          height: this.naturalHeight
+        });
+        
+        // Remove error class if it was added
+        this.classList.remove('image-error');
       });
       
-      // Ensure the image has proper attributes
+      // Set loading attribute
       if (!img.hasAttribute('loading')) {
         img.setAttribute('loading', 'lazy');
       }
       
-      if (originalSrc && !originalSrc.startsWith('http') && !originalSrc.startsWith('//')) {
-        console.warn(`Image has relative URL: ${originalSrc}`);
+      // Check URL validity
+      if (!originalSrc || originalSrc === '') {
+        console.error(`❌ Image ${index + 1} has empty src attribute`);
+        img.classList.add('image-error');
+        img.alt = '[Missing image URL]';
+      } else if (!originalSrc.startsWith('http') && !originalSrc.startsWith('//')) {
+        console.warn(`⚠️ Image ${index + 1} has relative URL:`, originalSrc);
+        console.log('💡 Try using absolute URLs starting with https://');
+      }
+      
+      // Add CORS attribute for external images
+      if (originalSrc && (originalSrc.includes('wixstatic.com') || originalSrc.includes('unsplash.com'))) {
+        img.setAttribute('crossorigin', 'anonymous');
+        console.log(`✓ Added CORS attribute to image ${index + 1}`);
+      }
+      
+      // Decode HTML entities in src if present
+      if (originalSrc && originalSrc.includes('&')) {
+        const parser = new DOMParser();
+        const decodedUrl = parser.parseFromString(originalSrc, 'text/html').body.textContent;
+        if (decodedUrl !== originalSrc) {
+          console.log(`🔄 Decoded URL for image ${index + 1}:`, decodedUrl);
+          img.src = decodedUrl;
+        }
       }
     });
+    
+    // Summary
+    console.log(`\n📊 Image Processing Summary:`);
+    console.log(`Total images: ${images.length}`);
+    console.log(`Check console above for individual image status`);
   }
 
   // Generate Table of Contents from headings
@@ -694,11 +824,11 @@ class MarkdownBlogViewer extends HTMLElement {
     };
   }
 
-  // Parse markdown to HTML with TABLE support (simple fallback if marked.js fails)
+  // Parse markdown to HTML with TABLE support (fallback if marked.js fails)
   simpleMarkdownParse(markdown) {
     let html = markdown;
     
-    // Parse tables first (before other replacements)
+    // Parse tables first
     html = this.parseMarkdownTables(html);
     
     // Images - Must come before links
@@ -741,7 +871,7 @@ class MarkdownBlogViewer extends HTMLElement {
     return html;
   }
 
-  // NEW METHOD: Parse Markdown Tables
+  // Parse Markdown Tables
   parseMarkdownTables(markdown) {
     const lines = markdown.split('\n');
     let result = [];
@@ -751,32 +881,25 @@ class MarkdownBlogViewer extends HTMLElement {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       
-      // Check if this is a table line (contains pipes)
       if (line.includes('|')) {
         const cells = line.split('|').map(cell => cell.trim()).filter(cell => cell);
         
-        // Check if next line is separator (----)
         const nextLine = lines[i + 1] ? lines[i + 1].trim() : '';
         const isSeparator = /^[\s\|:-]+$/.test(nextLine);
         
         if (!inTable && isSeparator) {
-          // Start of table - this is header row
           inTable = true;
           const headerCells = cells.map(cell => `<th>${cell}</th>`).join('');
           tableRows.push(`<thead><tr>${headerCells}</tr></thead><tbody>`);
-          i++; // Skip separator line
+          i++;
         } else if (inTable && cells.length > 0) {
-          // Table data row
           const dataCells = cells.map(cell => `<td>${cell}</td>`).join('');
           tableRows.push(`<tr>${dataCells}</tr>`);
         } else if (!inTable && cells.length > 0 && !isSeparator) {
-          // Single line with pipes but not a table
           result.push(line);
         }
       } else {
-        // Not a table line
         if (inTable) {
-          // End of table
           tableRows.push('</tbody>');
           result.push(`<table>${tableRows.join('')}</table>`);
           tableRows = [];
@@ -786,7 +909,6 @@ class MarkdownBlogViewer extends HTMLElement {
       }
     }
     
-    // Close table if still open
     if (inTable && tableRows.length > 0) {
       tableRows.push('</tbody>');
       result.push(`<table>${tableRows.join('')}</table>`);
@@ -802,41 +924,40 @@ class MarkdownBlogViewer extends HTMLElement {
       this.featuredImageContainer.style.display = 'block';
       
       this.featuredImageElement.addEventListener('error', () => {
-        console.error('Failed to load featured image:', this.state.featuredImage);
+        console.error('❌ Failed to load featured image:', this.state.featuredImage);
         this.featuredImageContainer.style.display = 'none';
       });
       
       this.featuredImageElement.addEventListener('load', () => {
-        console.log('Featured image loaded successfully:', this.state.featuredImage);
+        console.log('✅ Featured image loaded successfully:', this.state.featuredImage);
       });
       
-      console.log('Featured image updated:', this.state.featuredImage);
+      console.log('Featured image set:', this.state.featuredImage);
     }
   }
 
   // Update content with Markdown rendering and automatic TOC
   updateContent() {
-    console.log('updateContent called, content length:', this.state.markdownContent.length);
+    console.log('🎯 updateContent called, content length:', this.state.markdownContent.length);
     
     if (!this.contentElement || !this.tocElement) {
-      console.error('Content elements not found');
+      console.error('❌ Content elements not found');
       return;
     }
 
     if (!this.state.markdownContent) {
-      console.log('No markdown content available');
+      console.log('⚠️ No markdown content available');
       this.showError('No content available');
       return;
     }
 
     this.loadMarkedJS()
       .then(() => {
-        console.log('Marked.js loaded, parsing content...');
+        console.log('✅ Marked.js ready, parsing content...');
         let htmlContent;
         
         try {
           if (window.marked && window.marked.parse) {
-            // Configure marked options - IMPORTANT: Use marked.use() for v4+
             marked.use({
               breaks: true,
               gfm: true,
@@ -845,22 +966,26 @@ class MarkdownBlogViewer extends HTMLElement {
               pedantic: false
             });
             
-            // Parse markdown
             htmlContent = marked.parse(this.state.markdownContent);
-            console.log('Parsed with marked.js, checking for tables...');
+            console.log('✅ Parsed with marked.js');
             
-            // Debug: Check if table was generated
-            if (htmlContent.includes('<table')) {
-              console.log('✓ Table found in parsed HTML');
-            } else {
-              console.warn('⚠ No table found in parsed HTML');
+            const tableCount = (htmlContent.match(/<table/g) || []).length;
+            const imageCount = (htmlContent.match(/<img/g) || []).length;
+            console.log(`📊 Content analysis: ${tableCount} tables, ${imageCount} images`);
+            
+            if (tableCount === 0 && this.state.markdownContent.includes('|')) {
+              console.warn('⚠️ Markdown contains pipes but no tables generated');
+            }
+            
+            if (imageCount === 0 && this.state.markdownContent.includes('![')) {
+              console.warn('⚠️ Markdown contains image syntax but no images generated');
             }
           } else {
-            console.warn('marked.parse not available, using fallback parser');
+            console.warn('⚠️ marked.parse not available, using fallback parser');
             htmlContent = this.simpleMarkdownParse(this.state.markdownContent);
           }
         } catch (error) {
-          console.error('Error parsing markdown:', error);
+          console.error('❌ Error parsing markdown:', error);
           htmlContent = this.simpleMarkdownParse(this.state.markdownContent);
         }
         
@@ -875,18 +1000,17 @@ class MarkdownBlogViewer extends HTMLElement {
           this.contentElement.innerHTML = result.content;
         }
         
-        // Fix images and process embeds after content is rendered
         setTimeout(() => {
           this.fixImages();
           this.processEmbeds();
           this.debugTables();
         }, 100);
         
-        console.log('Content updated successfully');
+        console.log('✅ Content updated successfully');
         this.hideLoading();
       })
       .catch(error => {
-        console.error('Error in updateContent:', error);
+        console.error('❌ Error in updateContent:', error);
         const htmlContent = this.simpleMarkdownParse(this.state.markdownContent);
         const result = this.generateTableOfContents(htmlContent);
         
@@ -908,46 +1032,47 @@ class MarkdownBlogViewer extends HTMLElement {
       });
   }
 
-  // NEW METHOD: Debug table rendering
+  // Debug table rendering
   debugTables() {
     const tables = this.contentElement.querySelectorAll('table');
-    console.log(`Found ${tables.length} table(s) in rendered content`);
+    console.log(`\n📊 TABLE DEBUG:`);
+    console.log(`Found ${tables.length} table(s)`);
+    
+    if (tables.length === 0 && this.state.markdownContent.includes('|')) {
+      console.log('⚠️ Markdown has pipes but no tables rendered');
+    }
     
     tables.forEach((table, index) => {
-      console.log(`Table ${index + 1}:`, {
+      const computed = window.getComputedStyle(table);
+      console.log(`\nTable ${index + 1}:`, {
         rows: table.querySelectorAll('tr').length,
         headers: table.querySelectorAll('th').length,
         cells: table.querySelectorAll('td').length,
-        display: window.getComputedStyle(table).display,
-        visibility: window.getComputedStyle(table).visibility
+        display: computed.display,
+        visibility: computed.visibility
       });
     });
   }
 
-  // Process embedded content (iframes, videos)
+  // Process embedded content
   processEmbeds() {
     const iframes = this.contentElement.querySelectorAll('iframe');
-    console.log(`Found ${iframes.length} iframes to process`);
+    console.log(`Found ${iframes.length} iframes`);
     
     iframes.forEach((iframe, index) => {
-      console.log(`Processing iframe ${index}:`, iframe.src);
-      
-      // Ensure iframe has proper attributes
       if (!iframe.hasAttribute('frameborder')) {
         iframe.setAttribute('frameborder', '0');
       }
       if (!iframe.hasAttribute('allowfullscreen')) {
         iframe.setAttribute('allowfullscreen', '');
       }
-      
-      // Add loading attribute
       if (!iframe.hasAttribute('loading')) {
         iframe.setAttribute('loading', 'lazy');
       }
     });
   }
 
-  // Add smooth scroll behavior to TOC links
+  // Add smooth scroll to TOC
   addSmoothScrollToTOC() {
     const tocLinks = this.tocElement.querySelectorAll('a[href^="#"]');
     
@@ -978,34 +1103,50 @@ class MarkdownBlogViewer extends HTMLElement {
     });
   }
 
-  // Load marked.js library dynamically
+  // Load marked.js library
   loadMarkedJS() {
     return new Promise((resolve, reject) => {
       if (window.marked && window.marked.parse) {
-        console.log('marked.js already loaded');
+        console.log('✅ marked.js already loaded');
         this.markedLoaded = true;
         resolve();
         return;
       }
       
-      console.log('Loading marked.js from CDN...');
+      if (this.markedLoading) {
+        console.log('⏳ marked.js is loading...');
+        const checkInterval = setInterval(() => {
+          if (window.marked && window.marked.parse) {
+            clearInterval(checkInterval);
+            this.markedLoaded = true;
+            resolve();
+          }
+        }, 100);
+        return;
+      }
+      
+      console.log('📥 Loading marked.js from CDN...');
+      this.markedLoading = true;
+      
       const script = document.createElement('script');
       script.src = 'https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js';
       script.async = true;
       script.onload = () => {
-        console.log('marked.js loaded successfully');
+        console.log('✅ marked.js loaded successfully');
         this.markedLoaded = true;
+        this.markedLoading = false;
         resolve();
       };
       script.onerror = (error) => {
-        console.error('Failed to load marked.js:', error);
+        console.error('❌ Failed to load marked.js:', error);
+        this.markedLoading = false;
         reject(new Error('Failed to load marked.js'));
       };
       document.head.appendChild(script);
     });
   }
 
-  // Show error state
+  // Show error
   showError(message) {
     if (this.errorState) {
       this.errorState.textContent = message;
@@ -1016,7 +1157,7 @@ class MarkdownBlogViewer extends HTMLElement {
     }
   }
 
-  // Hide loading state and show content
+  // Hide loading
   hideLoading() {
     console.log('Hiding loading state');
     if (this.loadingState && this.contentWrapper) {
@@ -1027,7 +1168,7 @@ class MarkdownBlogViewer extends HTMLElement {
 
   // Connected callback
   connectedCallback() {
-    console.log('Custom element connected to DOM');
+    console.log('🎬 Custom element connected to DOM');
     
     this.loadMarkedJS().catch(error => {
       console.error('Error loading marked.js:', error);
@@ -1035,31 +1176,37 @@ class MarkdownBlogViewer extends HTMLElement {
     
     const cmsContent = this.getAttribute('cms-markdown-content');
     const cmsFeaturedImage = this.getAttribute('cms-featured-image');
+    const cmsTitle = this.getAttribute('cms-title');
     
-    console.log('Initial cms-markdown-content:', cmsContent ? cmsContent.substring(0, 100) : 'not set');
-    console.log('Initial cms-featured-image:', cmsFeaturedImage || 'not set');
+    console.log('📋 Initial attributes:');
+    console.log('  - Title:', cmsTitle || 'not set');
+    console.log('  - Content:', cmsContent ? `${cmsContent.length} chars` : 'not set');
+    console.log('  - Image:', cmsFeaturedImage || 'not set');
     
     if (cmsContent) {
       this.state.markdownContent = cmsContent;
-      this.updateContent();
+      this.queueContentUpdate();
     }
     
     if (cmsFeaturedImage) {
       this.state.featuredImage = cmsFeaturedImage;
       this.updateFeaturedImage();
     }
+
+    if (cmsTitle) {
+      this.state.title = cmsTitle;
+    }
   }
 }
 
-// Register the custom element for Wix
+// Register custom element
 customElements.define('markdown-blog-viewer', MarkdownBlogViewer);
 
-// Wix Custom Element Export
+// Wix exports
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = MarkdownBlogViewer;
 }
 
-// Global registration for Wix environment
 if (typeof window !== 'undefined' && window.customElements) {
   window.MarkdownBlogViewer = MarkdownBlogViewer;
 }
