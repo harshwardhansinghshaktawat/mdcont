@@ -665,6 +665,65 @@ class MarkdownBlogViewer extends HTMLElement {
     this.contentElement = this.shadowRoot.getElementById('blog-content');
   }
 
+  // ===================================
+  // SOLUTION 3: URL PROTECTION METHODS
+  // ===================================
+
+  /**
+   * Preprocess markdown to protect URLs from being corrupted by markdown parser
+   * This is crucial for Wix image URLs that contain underscores
+   */
+  preprocessMarkdown(markdown) {
+    console.log('🔧 Preprocessing markdown to protect URLs...');
+    
+    // Find all image URLs and temporarily replace them with placeholders
+    const imagePattern = /!\[([^\]]*)\]\(([^)]+)\)/g;
+    const urlMap = new Map();
+    let counter = 0;
+    
+    const processed = markdown.replace(imagePattern, (match, alt, url) => {
+      // Create unique placeholder for this URL
+      const placeholder = `__IMAGE_URL_PLACEHOLDER_${counter}__`;
+      urlMap.set(placeholder, url);
+      counter++;
+      
+      console.log(`  Protected image ${counter}: ${url.substring(0, 50)}...`);
+      
+      // Return markdown with placeholder
+      return `![${alt}](${placeholder})`;
+    });
+    
+    console.log(`✓ Protected ${urlMap.size} image URL(s) from corruption`);
+    
+    return { processed, urlMap };
+  }
+
+  /**
+   * Restore original URLs after markdown parsing is complete
+   */
+  restoreImageUrls(html, urlMap) {
+    if (urlMap.size === 0) {
+      console.log('No URLs to restore');
+      return html;
+    }
+    
+    console.log('🔄 Restoring original image URLs...');
+    let restored = html;
+    
+    urlMap.forEach((originalUrl, placeholder) => {
+      // Replace placeholder with original URL
+      restored = restored.replace(new RegExp(placeholder, 'g'), originalUrl);
+      console.log(`  Restored: ${originalUrl.substring(0, 50)}...`);
+    });
+    
+    console.log('✓ All image URLs restored successfully');
+    return restored;
+  }
+
+  // ===================================
+  // END URL PROTECTION METHODS
+  // ===================================
+
   // IMPROVED: Fix image URLs and add comprehensive error handling
   fixImages() {
     const images = this.contentElement.querySelectorAll('img');
@@ -709,9 +768,15 @@ class MarkdownBlogViewer extends HTMLElement {
         this.style.minHeight = '150px';
         this.style.display = 'block';
         
-        // Try to determine the error type
+        // Check for common issues
         if (this.src.includes('wixstatic.com')) {
           console.log('💡 This is a Wix media URL - check if image exists in Media Manager');
+          
+          // Check if underscore is missing (common parsing issue)
+          if (!this.src.includes('_') && originalSrc && originalSrc.includes('_')) {
+            console.error('⚠️ UNDERSCORE MISSING! URL was corrupted during parsing');
+            console.error('Expected underscore in URL but found none');
+          }
         }
       });
       
@@ -740,6 +805,12 @@ class MarkdownBlogViewer extends HTMLElement {
       } else if (!originalSrc.startsWith('http') && !originalSrc.startsWith('//')) {
         console.warn(`⚠️ Image ${index + 1} has relative URL:`, originalSrc);
         console.log('💡 Try using absolute URLs starting with https://');
+      }
+      
+      // Check for placeholder remnants (shouldn't happen but good to check)
+      if (originalSrc && originalSrc.includes('__IMAGE_URL_PLACEHOLDER_')) {
+        console.error(`❌ CRITICAL: Placeholder not restored for image ${index + 1}!`);
+        console.error('This is a bug in the URL restoration process');
       }
       
       // Add CORS attribute for external images
@@ -957,6 +1028,11 @@ class MarkdownBlogViewer extends HTMLElement {
         let htmlContent;
         
         try {
+          // ========================================
+          // CRITICAL: PREPROCESS TO PROTECT URLs
+          // ========================================
+          const { processed, urlMap } = this.preprocessMarkdown(this.state.markdownContent);
+          
           if (window.marked && window.marked.parse) {
             marked.use({
               breaks: true,
@@ -966,8 +1042,15 @@ class MarkdownBlogViewer extends HTMLElement {
               pedantic: false
             });
             
-            htmlContent = marked.parse(this.state.markdownContent);
-            console.log('✅ Parsed with marked.js');
+            // Parse the protected markdown
+            htmlContent = marked.parse(processed);
+            
+            // ========================================
+            // CRITICAL: RESTORE ORIGINAL URLs
+            // ========================================
+            htmlContent = this.restoreImageUrls(htmlContent, urlMap);
+            
+            console.log('✅ Parsed with marked.js and URLs restored');
             
             const tableCount = (htmlContent.match(/<table/g) || []).length;
             const imageCount = (htmlContent.match(/<img/g) || []).length;
@@ -982,7 +1065,8 @@ class MarkdownBlogViewer extends HTMLElement {
             }
           } else {
             console.warn('⚠️ marked.parse not available, using fallback parser');
-            htmlContent = this.simpleMarkdownParse(this.state.markdownContent);
+            htmlContent = this.simpleMarkdownParse(processed);
+            htmlContent = this.restoreImageUrls(htmlContent, urlMap);
           }
         } catch (error) {
           console.error('❌ Error parsing markdown:', error);
