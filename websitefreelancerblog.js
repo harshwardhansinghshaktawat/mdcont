@@ -372,6 +372,7 @@ class MarkdownBlogViewer extends HTMLElement {
           border-radius: 8px;
           overflow: hidden;
           background-color: #2d2d2d;
+          display: table;
         }
 
         .blog-content table th,
@@ -401,7 +402,7 @@ class MarkdownBlogViewer extends HTMLElement {
           border-bottom: none;
         }
 
-        .blog-content table tr:hover {
+        .blog-content table tbody tr:hover {
           background-color: #333333;
         }
 
@@ -693,9 +694,12 @@ class MarkdownBlogViewer extends HTMLElement {
     };
   }
 
-  // Parse markdown to HTML (simple fallback if marked.js fails)
+  // Parse markdown to HTML with TABLE support (simple fallback if marked.js fails)
   simpleMarkdownParse(markdown) {
     let html = markdown;
+    
+    // Parse tables first (before other replacements)
+    html = this.parseMarkdownTables(html);
     
     // Images - Must come before links
     html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/gim, '<img src="$2" alt="$1" loading="lazy" />');
@@ -735,6 +739,60 @@ class MarkdownBlogViewer extends HTMLElement {
     html = html.replace(/<p>\s*<\/p>/g, '');
     
     return html;
+  }
+
+  // NEW METHOD: Parse Markdown Tables
+  parseMarkdownTables(markdown) {
+    const lines = markdown.split('\n');
+    let result = [];
+    let inTable = false;
+    let tableRows = [];
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      
+      // Check if this is a table line (contains pipes)
+      if (line.includes('|')) {
+        const cells = line.split('|').map(cell => cell.trim()).filter(cell => cell);
+        
+        // Check if next line is separator (----)
+        const nextLine = lines[i + 1] ? lines[i + 1].trim() : '';
+        const isSeparator = /^[\s\|:-]+$/.test(nextLine);
+        
+        if (!inTable && isSeparator) {
+          // Start of table - this is header row
+          inTable = true;
+          const headerCells = cells.map(cell => `<th>${cell}</th>`).join('');
+          tableRows.push(`<thead><tr>${headerCells}</tr></thead><tbody>`);
+          i++; // Skip separator line
+        } else if (inTable && cells.length > 0) {
+          // Table data row
+          const dataCells = cells.map(cell => `<td>${cell}</td>`).join('');
+          tableRows.push(`<tr>${dataCells}</tr>`);
+        } else if (!inTable && cells.length > 0 && !isSeparator) {
+          // Single line with pipes but not a table
+          result.push(line);
+        }
+      } else {
+        // Not a table line
+        if (inTable) {
+          // End of table
+          tableRows.push('</tbody>');
+          result.push(`<table>${tableRows.join('')}</table>`);
+          tableRows = [];
+          inTable = false;
+        }
+        result.push(line);
+      }
+    }
+    
+    // Close table if still open
+    if (inTable && tableRows.length > 0) {
+      tableRows.push('</tbody>');
+      result.push(`<table>${tableRows.join('')}</table>`);
+    }
+    
+    return result.join('\n');
   }
 
   // Update featured image
@@ -778,20 +836,25 @@ class MarkdownBlogViewer extends HTMLElement {
         
         try {
           if (window.marked && window.marked.parse) {
-            // Configure marked options to allow HTML and enable tables
-            if (window.marked.setOptions) {
-              window.marked.setOptions({
-                breaks: true,
-                gfm: true,
-                tables: true,
-                sanitize: false,  // Allow raw HTML (for iframes, embeds, etc.)
-                headerIds: true,
-                mangle: false
-              });
-            }
-            // eslint-disable-next-line no-undef
+            // Configure marked options - IMPORTANT: Use marked.use() for v4+
+            marked.use({
+              breaks: true,
+              gfm: true,
+              headerIds: true,
+              mangle: false,
+              pedantic: false
+            });
+            
+            // Parse markdown
             htmlContent = marked.parse(this.state.markdownContent);
-            console.log('Parsed with marked.js');
+            console.log('Parsed with marked.js, checking for tables...');
+            
+            // Debug: Check if table was generated
+            if (htmlContent.includes('<table')) {
+              console.log('✓ Table found in parsed HTML');
+            } else {
+              console.warn('⚠ No table found in parsed HTML');
+            }
           } else {
             console.warn('marked.parse not available, using fallback parser');
             htmlContent = this.simpleMarkdownParse(this.state.markdownContent);
@@ -816,6 +879,7 @@ class MarkdownBlogViewer extends HTMLElement {
         setTimeout(() => {
           this.fixImages();
           this.processEmbeds();
+          this.debugTables();
         }, 100);
         
         console.log('Content updated successfully');
@@ -837,10 +901,27 @@ class MarkdownBlogViewer extends HTMLElement {
         setTimeout(() => {
           this.fixImages();
           this.processEmbeds();
+          this.debugTables();
         }, 100);
         
         this.hideLoading();
       });
+  }
+
+  // NEW METHOD: Debug table rendering
+  debugTables() {
+    const tables = this.contentElement.querySelectorAll('table');
+    console.log(`Found ${tables.length} table(s) in rendered content`);
+    
+    tables.forEach((table, index) => {
+      console.log(`Table ${index + 1}:`, {
+        rows: table.querySelectorAll('tr').length,
+        headers: table.querySelectorAll('th').length,
+        cells: table.querySelectorAll('td').length,
+        display: window.getComputedStyle(table).display,
+        visibility: window.getComputedStyle(table).visibility
+      });
+    });
   }
 
   // Process embedded content (iframes, videos)
