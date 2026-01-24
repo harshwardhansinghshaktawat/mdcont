@@ -13,6 +13,7 @@ class MarkdownBlogViewer extends HTMLElement {
     this.markedLoaded = false;
     this.markedLoading = false;
     this.contentQueue = null;
+    this.isMobile = false;
     this.initializeUI();
   }
 
@@ -487,20 +488,27 @@ class MarkdownBlogViewer extends HTMLElement {
           }
 
           #blog-content-wrapper {
-            flex-direction: column-reverse;
+            flex-direction: column; /* FIXED: Changed from column-reverse */
           }
 
           .toc-sidebar {
-            position: relative;
+            position: relative; /* FIXED: Not sticky on mobile */
             top: 0;
             width: 100%;
             max-width: 100%;
             max-height: none;
             margin-bottom: 40px;
+            overflow-y: visible; /* FIXED: No scrolling on mobile */
           }
 
           .main-content {
             max-width: 100%;
+          }
+
+          /* Make TOC collapsible on mobile */
+          .table-of-contents {
+            max-height: 400px;
+            overflow-y: auto;
           }
         }
 
@@ -611,6 +619,12 @@ class MarkdownBlogViewer extends HTMLElement {
     this.tocElement = this.shadowRoot.getElementById('table-of-contents');
     this.tocSidebar = this.shadowRoot.getElementById('toc-sidebar');
     this.contentElement = this.shadowRoot.getElementById('blog-content');
+  }
+
+  // Check if mobile
+  checkIfMobile() {
+    this.isMobile = window.innerWidth <= 1200;
+    return this.isMobile;
   }
 
   preprocessMarkdownImages(markdown) {
@@ -843,10 +857,18 @@ class MarkdownBlogViewer extends HTMLElement {
           this.tocElement.innerHTML = result.toc;
           this.contentElement.innerHTML = result.content;
           this.addSmoothScrollToTOC();
-          this.initScrollSpy(); // Add scroll spy
+          
+          // FIXED: Only enable scroll spy on desktop
+          this.checkIfMobile();
+          if (!this.isMobile) {
+            this.initScrollSpy();
+            console.log('✅ Scroll spy enabled (desktop)');
+          } else {
+            console.log('📱 Scroll spy disabled (mobile)');
+          }
         } else {
           this.tocElement.innerHTML = '';
-          this.tocSidebar.style.display = 'none'; // Hide sidebar if no TOC
+          this.tocSidebar.style.display = 'none';
           this.contentElement.innerHTML = result.content;
         }
         
@@ -869,7 +891,7 @@ class MarkdownBlogViewer extends HTMLElement {
     console.log(`📊 Found ${tables.length} table(s)`);
   }
 
-  // SCROLL SPY: Highlight current section
+  // FIXED: Scroll spy only on desktop, no auto-scroll in TOC
   initScrollSpy() {
     const headings = this.contentElement.querySelectorAll('h1[id], h2[id], h3[id], h4[id], h5[id], h6[id]');
     const tocLinks = this.tocElement.querySelectorAll('a[data-heading-id]');
@@ -900,12 +922,8 @@ class MarkdownBlogViewer extends HTMLElement {
           if (activeLink) {
             activeLink.classList.add('active');
             
-            // Smooth scroll TOC to show active link
-            activeLink.scrollIntoView({
-              behavior: 'smooth',
-              block: 'nearest',
-              inline: 'nearest'
-            });
+            // FIXED: Removed auto-scroll - it was causing the stuck scrolling issue
+            // The active highlighting is enough visual feedback
           }
         }
       });
