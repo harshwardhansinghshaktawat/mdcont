@@ -14,6 +14,7 @@ class MarkdownBlogViewer extends HTMLElement {
     this.markedLoading = false;
     this.contentQueue = null;
     this.isMobile = false;
+    this.loadingTimeout = null; // NEW: Track loading timeout
     this.initializeUI();
   }
 
@@ -47,6 +48,44 @@ class MarkdownBlogViewer extends HTMLElement {
     this.contentQueue = setTimeout(() => {
       this.updateContent();
     }, 100);
+  }
+
+  // NEW: Force hide loading after timeout
+  setLoadingTimeout() {
+    console.log('⏱️ Setting loading timeout (15 seconds)');
+    
+    if (this.loadingTimeout) {
+      clearTimeout(this.loadingTimeout);
+    }
+    
+    this.loadingTimeout = setTimeout(() => {
+      console.error('❌ Loading timeout - forcing content display');
+      
+      // Force render with fallback parser even if marked.js didn't load
+      if (this.state.markdownContent) {
+        console.log('🔧 Using emergency fallback rendering');
+        const preprocessed = this.preprocessMarkdownImages(this.state.markdownContent);
+        const htmlContent = this.simpleMarkdownParse(preprocessed);
+        const result = this.generateTableOfContents(htmlContent);
+        
+        if (result.toc) {
+          this.tocElement.innerHTML = result.toc;
+          this.contentElement.innerHTML = result.content;
+          this.addSmoothScrollToTOC();
+        } else {
+          this.tocElement.innerHTML = '';
+          this.tocSidebar.style.display = 'none';
+          this.contentElement.innerHTML = result.content;
+        }
+        
+        setTimeout(() => {
+          this.fixImages();
+          this.debugTables();
+        }, 100);
+      }
+      
+      this.hideLoading();
+    }, 15000); // 15 second timeout
   }
 
   initializeUI() {
@@ -488,24 +527,23 @@ class MarkdownBlogViewer extends HTMLElement {
           }
 
           #blog-content-wrapper {
-            flex-direction: column; /* FIXED: Changed from column-reverse */
+            flex-direction: column;
           }
 
           .toc-sidebar {
-            position: relative; /* FIXED: Not sticky on mobile */
+            position: relative;
             top: 0;
             width: 100%;
             max-width: 100%;
             max-height: none;
             margin-bottom: 40px;
-            overflow-y: visible; /* FIXED: No scrolling on mobile */
+            overflow-y: visible;
           }
 
           .main-content {
             max-width: 100%;
           }
 
-          /* Make TOC collapsible on mobile */
           .table-of-contents {
             max-height: 400px;
             overflow-y: auto;
@@ -621,7 +659,6 @@ class MarkdownBlogViewer extends HTMLElement {
     this.contentElement = this.shadowRoot.getElementById('blog-content');
   }
 
-  // Check if mobile
   checkIfMobile() {
     this.isMobile = window.innerWidth <= 1200;
     return this.isMobile;
@@ -815,12 +852,24 @@ class MarkdownBlogViewer extends HTMLElement {
     }
   }
 
+  // IMPROVED: Better error handling and timeout
   updateContent() {
     console.log('🎯 updateContent called');
     
-    if (!this.contentElement || !this.state.markdownContent) {
+    if (!this.contentElement) {
+      console.error('❌ Content element not found');
+      this.hideLoading();
       return;
     }
+
+    if (!this.state.markdownContent) {
+      console.warn('⚠️ No markdown content available');
+      this.hideLoading();
+      return;
+    }
+
+    // Set loading timeout to force display after 15 seconds
+    this.setLoadingTimeout();
 
     this.loadMarkedJS()
       .then(() => {
@@ -858,7 +907,6 @@ class MarkdownBlogViewer extends HTMLElement {
           this.contentElement.innerHTML = result.content;
           this.addSmoothScrollToTOC();
           
-          // FIXED: Only enable scroll spy on desktop
           this.checkIfMobile();
           if (!this.isMobile) {
             this.initScrollSpy();
@@ -879,9 +927,40 @@ class MarkdownBlogViewer extends HTMLElement {
         
         console.log('✅ Content updated');
         this.hideLoading();
+        
+        // Clear loading timeout since we succeeded
+        if (this.loadingTimeout) {
+          clearTimeout(this.loadingTimeout);
+          this.loadingTimeout = null;
+        }
       })
       .catch(error => {
-        console.error('❌ Error:', error);
+        console.error('❌ Error in updateContent:', error);
+        
+        // Try to render with fallback even if marked.js failed
+        try {
+          const preprocessed = this.preprocessMarkdownImages(this.state.markdownContent);
+          const htmlContent = this.simpleMarkdownParse(preprocessed);
+          const result = this.generateTableOfContents(htmlContent);
+          
+          if (result.toc) {
+            this.tocElement.innerHTML = result.toc;
+            this.contentElement.innerHTML = result.content;
+            this.addSmoothScrollToTOC();
+          } else {
+            this.tocElement.innerHTML = '';
+            this.tocSidebar.style.display = 'none';
+            this.contentElement.innerHTML = result.content;
+          }
+          
+          setTimeout(() => {
+            this.fixImages();
+            this.debugTables();
+          }, 100);
+        } catch (fallbackError) {
+          console.error('❌ Fallback parse also failed:', fallbackError);
+        }
+        
         this.hideLoading();
       });
   }
@@ -891,7 +970,6 @@ class MarkdownBlogViewer extends HTMLElement {
     console.log(`📊 Found ${tables.length} table(s)`);
   }
 
-  // FIXED: Scroll spy only on desktop, no auto-scroll in TOC
   initScrollSpy() {
     const headings = this.contentElement.querySelectorAll('h1[id], h2[id], h3[id], h4[id], h5[id], h6[id]');
     const tocLinks = this.tocElement.querySelectorAll('a[data-heading-id]');
@@ -914,25 +992,18 @@ class MarkdownBlogViewer extends HTMLElement {
         if (entry.isIntersecting) {
           const headingId = entry.target.id;
           
-          // Remove active class from all links
           tocLinks.forEach(link => link.classList.remove('active'));
           
-          // Add active class to current link
           const activeLink = this.tocElement.querySelector(`a[data-heading-id="${headingId}"]`);
           if (activeLink) {
             activeLink.classList.add('active');
-            
-            // FIXED: Removed auto-scroll - it was causing the stuck scrolling issue
-            // The active highlighting is enough visual feedback
           }
         }
       });
     }, observerOptions);
     
-    // Observe all headings
     headings.forEach(heading => observer.observe(heading));
     
-    // Store observer for cleanup
     this.scrollSpyObserver = observer;
   }
 
@@ -951,7 +1022,6 @@ class MarkdownBlogViewer extends HTMLElement {
             block: 'start'
           });
           
-          // Remove active from all, add to clicked
           tocLinks.forEach(l => l.classList.remove('active'));
           link.classList.add('active');
         }
@@ -959,6 +1029,7 @@ class MarkdownBlogViewer extends HTMLElement {
     });
   }
 
+  // IMPROVED: Added timeout for marked.js loading
   loadMarkedJS() {
     return new Promise((resolve, reject) => {
       if (window.marked) {
@@ -969,32 +1040,56 @@ class MarkdownBlogViewer extends HTMLElement {
       }
       
       if (this.markedLoading) {
+        console.log('⏳ marked.js is already loading, waiting...');
         const checkInterval = setInterval(() => {
           if (window.marked) {
             clearInterval(checkInterval);
+            this.markedLoaded = true;
             resolve();
           }
         }, 100);
+        
+        // Add timeout for waiting
+        setTimeout(() => {
+          clearInterval(checkInterval);
+          if (!window.marked) {
+            console.error('❌ Timeout waiting for marked.js');
+            reject(new Error('Timeout waiting for marked.js'));
+          }
+        }, 10000); // 10 second timeout
+        
         return;
       }
       
-      console.log('📥 Loading marked.js...');
+      console.log('📥 Loading marked.js from CDN...');
       this.markedLoading = true;
       
       const script = document.createElement('script');
       script.src = 'https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js';
       script.async = true;
+      
+      // Set timeout for script loading
+      const timeoutId = setTimeout(() => {
+        console.error('❌ Timeout loading marked.js from CDN');
+        this.markedLoading = false;
+        reject(new Error('Timeout loading marked.js'));
+      }, 10000); // 10 second timeout
+      
       script.onload = () => {
-        console.log('✅ marked.js loaded');
+        clearTimeout(timeoutId);
+        console.log('✅ marked.js loaded from CDN');
         this.markedLoaded = true;
         this.markedLoading = false;
         resolve();
       };
-      script.onerror = () => {
-        console.error('❌ Failed to load marked.js');
+      
+      script.onerror = (error) => {
+        clearTimeout(timeoutId);
+        console.error('❌ Failed to load marked.js from CDN:', error);
         this.markedLoading = false;
         reject(new Error('Failed to load marked.js'));
       };
+      
       document.head.appendChild(script);
     });
   }
@@ -1010,24 +1105,51 @@ class MarkdownBlogViewer extends HTMLElement {
   }
 
   hideLoading() {
+    console.log('🎬 Hiding loading state');
     if (this.loadingState && this.contentWrapper) {
       this.loadingState.style.display = 'none';
       this.contentWrapper.style.display = 'flex';
+    }
+    
+    // Clear loading timeout if it exists
+    if (this.loadingTimeout) {
+      clearTimeout(this.loadingTimeout);
+      this.loadingTimeout = null;
     }
   }
 
   connectedCallback() {
     console.log('🎬 Custom element connected');
     
-    this.loadMarkedJS().catch(error => console.error('Error loading marked.js:', error));
+    // Start loading marked.js immediately
+    this.loadMarkedJS().catch(error => {
+      console.error('Error preloading marked.js:', error);
+      // Don't fail - we have fallback parser
+    });
     
     const cmsContent = this.getAttribute('cms-markdown-content');
     const cmsFeaturedImage = this.getAttribute('cms-featured-image');
     const cmsTitle = this.getAttribute('cms-title');
     
+    console.log('📋 Initial attributes check:', {
+      hasContent: !!cmsContent,
+      contentLength: cmsContent ? cmsContent.length : 0,
+      hasImage: !!cmsFeaturedImage,
+      hasTitle: !!cmsTitle
+    });
+    
     if (cmsContent) {
       this.state.markdownContent = cmsContent;
       this.queueContentUpdate();
+    } else {
+      console.warn('⚠️ No content provided on connect - waiting for attribute change');
+      // Set a timeout to force show loading error if no content after 5 seconds
+      setTimeout(() => {
+        if (!this.state.markdownContent) {
+          console.error('❌ No content received after 5 seconds');
+          this.showError('No content available');
+        }
+      }, 5000);
     }
     
     if (cmsFeaturedImage) {
@@ -1041,9 +1163,19 @@ class MarkdownBlogViewer extends HTMLElement {
   }
 
   disconnectedCallback() {
-    // Cleanup scroll spy observer
+    console.log('👋 Custom element disconnected');
+    
+    // Cleanup
     if (this.scrollSpyObserver) {
       this.scrollSpyObserver.disconnect();
+    }
+    
+    if (this.loadingTimeout) {
+      clearTimeout(this.loadingTimeout);
+    }
+    
+    if (this.contentQueue) {
+      clearTimeout(this.contentQueue);
     }
   }
 }
