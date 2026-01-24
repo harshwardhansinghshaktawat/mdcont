@@ -444,7 +444,7 @@ class MarkdownBlogViewer extends HTMLElement {
     this.contentElement = this.shadowRoot.getElementById('blog-content');
   }
 
-  // SIMPLIFIED: Just use HTML img tags directly - no placeholder needed
+  // Convert markdown images to HTML img tags
   preprocessMarkdownImages(markdown) {
     console.log('🔧 Converting markdown images to HTML...');
     
@@ -455,7 +455,7 @@ class MarkdownBlogViewer extends HTMLElement {
       imageCount++;
       console.log(`  Image ${imageCount}: ${url.substring(0, 60)}...`);
       
-      // Convert directly to HTML img tag - bypasses all markdown processing
+      // Convert directly to HTML img tag
       return `<img src="${url}" alt="${alt}" loading="lazy" />`;
     });
     
@@ -463,13 +463,13 @@ class MarkdownBlogViewer extends HTMLElement {
     return processed;
   }
 
+  // Fix image error handling
   fixImages() {
     const images = this.contentElement.querySelectorAll('img');
     console.log(`\n🖼️ IMAGE DEBUG: Found ${images.length} images`);
     
     images.forEach((img, index) => {
       const originalSrc = img.getAttribute('src');
-      const altText = img.getAttribute('alt') || 'No alt text';
       
       console.log(`Image ${index + 1}:`, originalSrc);
       
@@ -493,6 +493,7 @@ class MarkdownBlogViewer extends HTMLElement {
     });
   }
 
+  // Generate Table of Contents
   generateTableOfContents(htmlContent) {
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = htmlContent;
@@ -533,13 +534,22 @@ class MarkdownBlogViewer extends HTMLElement {
     return { toc: tocHtml, content: updatedContent };
   }
 
+  // FIXED: Fallback markdown parser with image protection
   simpleMarkdownParse(markdown) {
     let html = markdown;
     
-    // Tables first
+    // Parse tables first
     html = this.parseMarkdownTables(html);
     
-    // Images are already HTML - skip
+    // CRITICAL FIX: Protect HTML img tags from being processed by italic/bold regex
+    const protectedImages = [];
+    html = html.replace(/<img[^>]+>/g, (match) => {
+      const placeholder = `___PROTECTED_IMAGE_${protectedImages.length}___`;
+      protectedImages.push(match);
+      return placeholder;
+    });
+    
+    console.log(`🛡️ Protected ${protectedImages.length} image tags from processing`);
     
     // Links
     html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2">$1</a>');
@@ -554,11 +564,9 @@ class MarkdownBlogViewer extends HTMLElement {
     
     // Bold
     html = html.replace(/\*\*([^\*]+)\*\*/gim, '<strong>$1</strong>');
-    html = html.replace(/__([^_]+)__/gim, '<strong>$1</strong>');
     
-    // Italic
+    // Italic  
     html = html.replace(/\*([^\*]+)\*/gim, '<em>$1</em>');
-    html = html.replace(/_([^_]+)_/gim, '<em>$1</em>');
     
     // Code blocks
     html = html.replace(/```([^`]+)```/gim, '<pre><code>$1</code></pre>');
@@ -566,15 +574,24 @@ class MarkdownBlogViewer extends HTMLElement {
     // Inline code
     html = html.replace(/`([^`]+)`/gim, '<code>$1</code>');
     
+    // RESTORE protected images BEFORE paragraph processing
+    protectedImages.forEach((img, index) => {
+      html = html.replace(`___PROTECTED_IMAGE_${index}___`, img);
+    });
+    
+    console.log(`✓ Restored ${protectedImages.length} protected image tags`);
+    
     // Paragraphs
     html = html.replace(/\n\n+/g, '</p><p>');
     html = html.replace(/\n/g, '<br>');
     html = '<p>' + html + '</p>';
     html = html.replace(/<p><\/p>/g, '');
+    html = html.replace(/<p>\s*<\/p>/g, '');
     
     return html;
   }
 
+  // Parse markdown tables
   parseMarkdownTables(markdown) {
     const lines = markdown.split('\n');
     let result = [];
@@ -619,6 +636,7 @@ class MarkdownBlogViewer extends HTMLElement {
     return result.join('\n');
   }
 
+  // Update featured image
   updateFeaturedImage() {
     if (this.featuredImageElement && this.featuredImageContainer && this.state.featuredImage) {
       this.featuredImageElement.src = this.state.featuredImage;
@@ -635,6 +653,7 @@ class MarkdownBlogViewer extends HTMLElement {
     }
   }
 
+  // Update content
   updateContent() {
     console.log('🎯 updateContent called');
     
@@ -648,13 +667,12 @@ class MarkdownBlogViewer extends HTMLElement {
         let htmlContent;
         
         try {
-          // CRITICAL: Convert images to HTML BEFORE any parsing
+          // Convert images to HTML BEFORE any parsing
           const preprocessed = this.preprocessMarkdownImages(this.state.markdownContent);
           
           if (window.marked && typeof window.marked === 'function') {
-            // Try using marked as a function
             htmlContent = window.marked(preprocessed);
-            console.log('✅ Parsed with marked.js');
+            console.log('✅ Parsed with marked.js (function)');
           } else if (window.marked && window.marked.parse) {
             marked.use({
               breaks: true,
@@ -698,11 +716,13 @@ class MarkdownBlogViewer extends HTMLElement {
       });
   }
 
+  // Debug tables
   debugTables() {
     const tables = this.contentElement.querySelectorAll('table');
     console.log(`📊 Found ${tables.length} table(s)`);
   }
 
+  // Add smooth scroll to TOC
   addSmoothScrollToTOC() {
     const tocLinks = this.tocElement.querySelectorAll('a[href^="#"]');
     tocLinks.forEach(link => {
@@ -717,6 +737,7 @@ class MarkdownBlogViewer extends HTMLElement {
     });
   }
 
+  // Load marked.js
   loadMarkedJS() {
     return new Promise((resolve, reject) => {
       if (window.marked) {
