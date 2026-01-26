@@ -11,10 +11,7 @@ class MarkdownBlogViewer extends HTMLElement {
     };
 
     this.markedLoaded = false;
-    this.markedLoading = false;
-    this.contentQueue = null;
     this.isMobile = false;
-    this.loadingTimeout = null; // NEW: Track loading timeout
     this.initializeUI();
   }
 
@@ -23,69 +20,18 @@ class MarkdownBlogViewer extends HTMLElement {
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
-    console.log('Attribute changed:', name, 'Value:', newValue ? newValue.substring(0, 100) : 'empty');
-    
     if (!newValue || oldValue === newValue) return;
 
     if (name === 'cms-markdown-content') {
       this.state.markdownContent = newValue;
-      this.queueContentUpdate();
+      // CRITICAL FIX: Render immediately, no delays
+      this.updateContent();
     } else if (name === 'cms-featured-image') {
       this.state.featuredImage = newValue;
       this.updateFeaturedImage();
     } else if (name === 'cms-title') {
       this.state.title = newValue;
     }
-  }
-
-  queueContentUpdate() {
-    console.log('🔄 Queueing content update...');
-    
-    if (this.contentQueue) {
-      clearTimeout(this.contentQueue);
-    }
-    
-    this.contentQueue = setTimeout(() => {
-      this.updateContent();
-    }, 100);
-  }
-
-  // NEW: Force hide loading after timeout
-  setLoadingTimeout() {
-    console.log('⏱️ Setting loading timeout (15 seconds)');
-    
-    if (this.loadingTimeout) {
-      clearTimeout(this.loadingTimeout);
-    }
-    
-    this.loadingTimeout = setTimeout(() => {
-      console.error('❌ Loading timeout - forcing content display');
-      
-      // Force render with fallback parser even if marked.js didn't load
-      if (this.state.markdownContent) {
-        console.log('🔧 Using emergency fallback rendering');
-        const preprocessed = this.preprocessMarkdownImages(this.state.markdownContent);
-        const htmlContent = this.simpleMarkdownParse(preprocessed);
-        const result = this.generateTableOfContents(htmlContent);
-        
-        if (result.toc) {
-          this.tocElement.innerHTML = result.toc;
-          this.contentElement.innerHTML = result.content;
-          this.addSmoothScrollToTOC();
-        } else {
-          this.tocElement.innerHTML = '';
-          this.tocSidebar.style.display = 'none';
-          this.contentElement.innerHTML = result.content;
-        }
-        
-        setTimeout(() => {
-          this.fixImages();
-          this.debugTables();
-        }, 100);
-      }
-      
-      this.hideLoading();
-    }, 15000); // 15 second timeout
   }
 
   initializeUI() {
@@ -115,34 +61,9 @@ class MarkdownBlogViewer extends HTMLElement {
           align-items: flex-start;
         }
 
-        /* Loading State */
+        /* Loading State - SIMPLIFIED */
         .loading-state {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          min-height: 400px;
-          flex-direction: column;
-          gap: 20px;
-          width: 100%;
-        }
-
-        .loading-spinner {
-          width: 50px;
-          height: 50px;
-          border: 4px solid #f3f3f3;
-          border-top: 4px solid #64FFDA;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-
-        .loading-text {
-          color: #ffffff;
-          font-size: 16px;
+          display: none; /* CRITICAL FIX: Don't show loading state to crawlers */
         }
 
         .error-state {
@@ -270,7 +191,6 @@ class MarkdownBlogViewer extends HTMLElement {
           transform: translateX(4px);
         }
 
-        /* ACTIVE/CURRENT HEADING HIGHLIGHT */
         .toc-list a.active {
           color: #64FFDA;
           background-color: rgba(100, 255, 218, 0.15);
@@ -279,7 +199,6 @@ class MarkdownBlogViewer extends HTMLElement {
           box-shadow: 0 2px 8px rgba(100, 255, 218, 0.2);
         }
 
-        /* Heading level indentation */
         .toc-list .toc-level-1 {
           font-size: 17px;
           font-weight: 600;
@@ -306,7 +225,6 @@ class MarkdownBlogViewer extends HTMLElement {
           padding-left: 48px;
         }
 
-        /* Custom Scrollbar for TOC */
         .toc-sidebar::-webkit-scrollbar {
           width: 6px;
         }
@@ -333,7 +251,6 @@ class MarkdownBlogViewer extends HTMLElement {
           animation: fadeInUp 0.8s ease-out 0.6s both;
         }
 
-        /* Scroll margin for headings (accounts for sticky header) */
         .blog-content h1,
         .blog-content h2,
         .blog-content h3,
@@ -458,12 +375,6 @@ class MarkdownBlogViewer extends HTMLElement {
           margin-top: -20px;
           margin-bottom: 20px;
           font-style: italic;
-        }
-
-        .blog-content img.image-error {
-          border: 2px dashed #ff4444;
-          min-height: 150px;
-          background-color: #2d2d2d;
         }
 
         .blog-content hr {
@@ -632,7 +543,7 @@ class MarkdownBlogViewer extends HTMLElement {
           <p>Error loading content. Please refresh the page.</p>
         </div>
 
-        <div id="blog-content-wrapper" style="display: none;">
+        <div id="blog-content-wrapper">
           <!-- Sidebar TOC -->
           <aside class="toc-sidebar" id="toc-sidebar">
             <div id="table-of-contents"></div>
@@ -665,44 +576,21 @@ class MarkdownBlogViewer extends HTMLElement {
   }
 
   preprocessMarkdownImages(markdown) {
-    console.log('🔧 Converting markdown images to HTML...');
-    
     const imagePattern = /!\[([^\]]*)\]\(([^)]+)\)/g;
-    let imageCount = 0;
-    
-    const processed = markdown.replace(imagePattern, (match, alt, url) => {
-      imageCount++;
-      console.log(`  Image ${imageCount}: ${url.substring(0, 60)}...`);
+    return markdown.replace(imagePattern, (match, alt, url) => {
       return `<img src="${url}" alt="${alt}" loading="lazy" />`;
     });
-    
-    console.log(`✓ Converted ${imageCount} image(s) to HTML tags`);
-    return processed;
   }
 
   fixImages() {
     const images = this.contentElement.querySelectorAll('img');
-    console.log(`\n🖼️ IMAGE DEBUG: Found ${images.length} images`);
     
-    images.forEach((img, index) => {
-      const originalSrc = img.getAttribute('src');
-      
-      console.log(`Image ${index + 1}:`, originalSrc);
-      
-      img.addEventListener('error', function() {
-        console.error(`❌ Failed to load image ${index + 1}:`, this.src);
-        this.classList.add('image-error');
-        this.style.minHeight = '150px';
-      });
-      
-      img.addEventListener('load', function() {
-        console.log(`✅ Successfully loaded image ${index + 1}`);
-      });
-      
+    images.forEach((img) => {
       if (!img.hasAttribute('loading')) {
         img.setAttribute('loading', 'lazy');
       }
       
+      const originalSrc = img.getAttribute('src');
       if (originalSrc && (originalSrc.includes('wixstatic.com') || originalSrc.includes('unsplash.com'))) {
         img.setAttribute('crossorigin', 'anonymous');
       }
@@ -761,17 +649,13 @@ class MarkdownBlogViewer extends HTMLElement {
       return placeholder;
     });
     
-    console.log(`🛡️ Protected ${protectedImages.length} image tags from processing`);
-    
     html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2">$1</a>');
-    
     html = html.replace(/^######\s+(.*)$/gim, '<h6>$1</h6>');
     html = html.replace(/^#####\s+(.*)$/gim, '<h5>$1</h5>');
     html = html.replace(/^####\s+(.*)$/gim, '<h4>$1</h4>');
     html = html.replace(/^###\s+(.*)$/gim, '<h3>$1</h3>');
     html = html.replace(/^##\s+(.*)$/gim, '<h2>$1</h2>');
     html = html.replace(/^#\s+(.*)$/gim, '<h1>$1</h1>');
-    
     html = html.replace(/\*\*([^\*]+)\*\*/gim, '<strong>$1</strong>');
     html = html.replace(/\*([^\*]+)\*/gim, '<em>$1</em>');
     html = html.replace(/```([^`]+)```/gim, '<pre><code>$1</code></pre>');
@@ -780,8 +664,6 @@ class MarkdownBlogViewer extends HTMLElement {
     protectedImages.forEach((img, index) => {
       html = html.replace(`___PROTECTED_IMAGE_${index}___`, img);
     });
-    
-    console.log(`✓ Restored ${protectedImages.length} protected image tags`);
     
     html = html.replace(/\n\n+/g, '</p><p>');
     html = html.replace(/\n/g, '<br>');
@@ -840,134 +722,63 @@ class MarkdownBlogViewer extends HTMLElement {
     if (this.featuredImageElement && this.featuredImageContainer && this.state.featuredImage) {
       this.featuredImageElement.src = this.state.featuredImage;
       this.featuredImageContainer.style.display = 'block';
-      
-      this.featuredImageElement.addEventListener('error', () => {
-        console.error('❌ Failed to load featured image');
-        this.featuredImageContainer.style.display = 'none';
-      });
-      
-      this.featuredImageElement.addEventListener('load', () => {
-        console.log('✅ Featured image loaded');
-      });
     }
   }
 
-  // IMPROVED: Better error handling and timeout
+  // CRITICAL FIX: Simplified updateContent - renders immediately
   updateContent() {
-    console.log('🎯 updateContent called');
+    if (!this.contentElement || !this.state.markdownContent) {
+      return;
+    }
+
+    let htmlContent;
     
-    if (!this.contentElement) {
-      console.error('❌ Content element not found');
-      this.hideLoading();
-      return;
-    }
-
-    if (!this.state.markdownContent) {
-      console.warn('⚠️ No markdown content available');
-      this.hideLoading();
-      return;
-    }
-
-    // Set loading timeout to force display after 15 seconds
-    this.setLoadingTimeout();
-
-    this.loadMarkedJS()
-      .then(() => {
-        console.log('✅ Parsing content...');
-        let htmlContent;
-        
-        try {
-          const preprocessed = this.preprocessMarkdownImages(this.state.markdownContent);
-          
-          if (window.marked && typeof window.marked === 'function') {
-            htmlContent = window.marked(preprocessed);
-            console.log('✅ Parsed with marked.js (function)');
-          } else if (window.marked && window.marked.parse) {
-            marked.use({
-              breaks: true,
-              gfm: true,
-              headerIds: true,
-              mangle: false
-            });
-            htmlContent = marked.parse(preprocessed);
-            console.log('✅ Parsed with marked.parse()');
-          } else {
-            console.warn('⚠️ Using fallback parser');
-            htmlContent = this.simpleMarkdownParse(preprocessed);
-          }
-        } catch (error) {
-          console.error('❌ Parse error:', error);
-          htmlContent = this.simpleMarkdownParse(this.preprocessMarkdownImages(this.state.markdownContent));
-        }
-        
-        const result = this.generateTableOfContents(htmlContent);
-        
-        if (result.toc) {
-          this.tocElement.innerHTML = result.toc;
-          this.contentElement.innerHTML = result.content;
-          this.addSmoothScrollToTOC();
-          
-          this.checkIfMobile();
-          if (!this.isMobile) {
-            this.initScrollSpy();
-            console.log('✅ Scroll spy enabled (desktop)');
-          } else {
-            console.log('📱 Scroll spy disabled (mobile)');
-          }
+    try {
+      const preprocessed = this.preprocessMarkdownImages(this.state.markdownContent);
+      
+      // Try marked.js if available, otherwise use fallback
+      if (window.marked) {
+        if (typeof window.marked === 'function') {
+          htmlContent = window.marked(preprocessed);
+        } else if (window.marked.parse) {
+          marked.use({
+            breaks: true,
+            gfm: true,
+            headerIds: true,
+            mangle: false
+          });
+          htmlContent = marked.parse(preprocessed);
         } else {
-          this.tocElement.innerHTML = '';
-          this.tocSidebar.style.display = 'none';
-          this.contentElement.innerHTML = result.content;
+          htmlContent = this.simpleMarkdownParse(preprocessed);
         }
-        
-        setTimeout(() => {
-          this.fixImages();
-          this.debugTables();
-        }, 100);
-        
-        console.log('✅ Content updated');
-        this.hideLoading();
-        
-        // Clear loading timeout since we succeeded
-        if (this.loadingTimeout) {
-          clearTimeout(this.loadingTimeout);
-          this.loadingTimeout = null;
-        }
-      })
-      .catch(error => {
-        console.error('❌ Error in updateContent:', error);
-        
-        // Try to render with fallback even if marked.js failed
-        try {
-          const preprocessed = this.preprocessMarkdownImages(this.state.markdownContent);
-          const htmlContent = this.simpleMarkdownParse(preprocessed);
-          const result = this.generateTableOfContents(htmlContent);
-          
-          if (result.toc) {
-            this.tocElement.innerHTML = result.toc;
-            this.contentElement.innerHTML = result.content;
-            this.addSmoothScrollToTOC();
-          } else {
-            this.tocElement.innerHTML = '';
-            this.tocSidebar.style.display = 'none';
-            this.contentElement.innerHTML = result.content;
-          }
-          
-          setTimeout(() => {
-            this.fixImages();
-            this.debugTables();
-          }, 100);
-        } catch (fallbackError) {
-          console.error('❌ Fallback parse also failed:', fallbackError);
-        }
-        
-        this.hideLoading();
-      });
-  }
-
-  debugTables() {
-    const tables = this.contentElement.querySelectorAll('table');
-    console.log(`📊 Found ${tables.length} table(s)`);
+      } else {
+        // Use fallback parser immediately if marked.js not loaded
+        htmlContent = this.simpleMarkdownParse(preprocessed);
+      }
+    } catch (error) {
+      console.error('Parse error:', error);
+      htmlContent = this.simpleMarkdownParse(this.preprocessMarkdownImages(this.state.markdownContent));
+    }
+    
+    const result = this.generateTableOfContents(htmlContent);
+    
+    if (result.toc) {
+      this.tocElement.innerHTML = result.toc;
+      this.contentElement.innerHTML = result.content;
+      this.addSmoothScrollToTOC();
+      
+      this.checkIfMobile();
+      if (!this.isMobile) {
+        this.initScrollSpy();
+      }
+    } else {
+      this.tocElement.innerHTML = '';
+      this.tocSidebar.style.display = 'none';
+      this.contentElement.innerHTML = result.content;
+    }
+    
+    // CRITICAL FIX: Apply image fixes synchronously
+    this.fixImages();
   }
 
   initScrollSpy() {
@@ -975,11 +786,8 @@ class MarkdownBlogViewer extends HTMLElement {
     const tocLinks = this.tocElement.querySelectorAll('a[data-heading-id]');
     
     if (headings.length === 0 || tocLinks.length === 0) {
-      console.log('⚠️ No headings or TOC links found for scroll spy');
       return;
     }
-    
-    console.log(`✅ Scroll spy initialized with ${headings.length} headings`);
     
     const observerOptions = {
       root: null,
@@ -991,9 +799,7 @@ class MarkdownBlogViewer extends HTMLElement {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
           const headingId = entry.target.id;
-          
           tocLinks.forEach(link => link.classList.remove('active'));
-          
           const activeLink = this.tocElement.querySelector(`a[data-heading-id="${headingId}"]`);
           if (activeLink) {
             activeLink.classList.add('active');
@@ -1003,7 +809,6 @@ class MarkdownBlogViewer extends HTMLElement {
     }, observerOptions);
     
     headings.forEach(heading => observer.observe(heading));
-    
     this.scrollSpyObserver = observer;
   }
 
@@ -1029,127 +834,37 @@ class MarkdownBlogViewer extends HTMLElement {
     });
   }
 
-  // IMPROVED: Added timeout for marked.js loading
+  // CRITICAL FIX: Synchronous marked.js loading attempt
   loadMarkedJS() {
-    return new Promise((resolve, reject) => {
-      if (window.marked) {
-        console.log('✅ marked.js already loaded');
-        this.markedLoaded = true;
-        resolve();
-        return;
-      }
-      
-      if (this.markedLoading) {
-        console.log('⏳ marked.js is already loading, waiting...');
-        const checkInterval = setInterval(() => {
-          if (window.marked) {
-            clearInterval(checkInterval);
-            this.markedLoaded = true;
-            resolve();
-          }
-        }, 100);
-        
-        // Add timeout for waiting
-        setTimeout(() => {
-          clearInterval(checkInterval);
-          if (!window.marked) {
-            console.error('❌ Timeout waiting for marked.js');
-            reject(new Error('Timeout waiting for marked.js'));
-          }
-        }, 10000); // 10 second timeout
-        
-        return;
-      }
-      
-      console.log('📥 Loading marked.js from CDN...');
-      this.markedLoading = true;
-      
-      const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js';
-      script.async = true;
-      
-      // Set timeout for script loading
-      const timeoutId = setTimeout(() => {
-        console.error('❌ Timeout loading marked.js from CDN');
-        this.markedLoading = false;
-        reject(new Error('Timeout loading marked.js'));
-      }, 10000); // 10 second timeout
-      
-      script.onload = () => {
-        clearTimeout(timeoutId);
-        console.log('✅ marked.js loaded from CDN');
-        this.markedLoaded = true;
-        this.markedLoading = false;
-        resolve();
-      };
-      
-      script.onerror = (error) => {
-        clearTimeout(timeoutId);
-        console.error('❌ Failed to load marked.js from CDN:', error);
-        this.markedLoading = false;
-        reject(new Error('Failed to load marked.js'));
-      };
-      
-      document.head.appendChild(script);
-    });
-  }
-
-  showError(message) {
-    if (this.errorState) {
-      this.errorState.textContent = message;
-      this.errorState.style.display = 'block';
-    }
-    if (this.loadingState) {
-      this.loadingState.style.display = 'none';
-    }
-  }
-
-  hideLoading() {
-    console.log('🎬 Hiding loading state');
-    if (this.loadingState && this.contentWrapper) {
-      this.loadingState.style.display = 'none';
-      this.contentWrapper.style.display = 'flex';
+    if (window.marked) {
+      this.markedLoaded = true;
+      return;
     }
     
-    // Clear loading timeout if it exists
-    if (this.loadingTimeout) {
-      clearTimeout(this.loadingTimeout);
-      this.loadingTimeout = null;
-    }
+    // Try to load marked.js asynchronously, but don't wait for it
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js';
+    script.async = true;
+    
+    script.onload = () => {
+      this.markedLoaded = true;
+    };
+    
+    document.head.appendChild(script);
   }
 
   connectedCallback() {
-    console.log('🎬 Custom element connected');
-    
-    // Start loading marked.js immediately
-    this.loadMarkedJS().catch(error => {
-      console.error('Error preloading marked.js:', error);
-      // Don't fail - we have fallback parser
-    });
+    // Start loading marked.js (non-blocking)
+    this.loadMarkedJS();
     
     const cmsContent = this.getAttribute('cms-markdown-content');
     const cmsFeaturedImage = this.getAttribute('cms-featured-image');
     const cmsTitle = this.getAttribute('cms-title');
     
-    console.log('📋 Initial attributes check:', {
-      hasContent: !!cmsContent,
-      contentLength: cmsContent ? cmsContent.length : 0,
-      hasImage: !!cmsFeaturedImage,
-      hasTitle: !!cmsTitle
-    });
-    
     if (cmsContent) {
       this.state.markdownContent = cmsContent;
-      this.queueContentUpdate();
-    } else {
-      console.warn('⚠️ No content provided on connect - waiting for attribute change');
-      // Set a timeout to force show loading error if no content after 5 seconds
-      setTimeout(() => {
-        if (!this.state.markdownContent) {
-          console.error('❌ No content received after 5 seconds');
-          this.showError('No content available');
-        }
-      }, 5000);
+      // CRITICAL FIX: Render immediately on connect
+      this.updateContent();
     }
     
     if (cmsFeaturedImage) {
@@ -1163,19 +878,8 @@ class MarkdownBlogViewer extends HTMLElement {
   }
 
   disconnectedCallback() {
-    console.log('👋 Custom element disconnected');
-    
-    // Cleanup
     if (this.scrollSpyObserver) {
       this.scrollSpyObserver.disconnect();
-    }
-    
-    if (this.loadingTimeout) {
-      clearTimeout(this.loadingTimeout);
-    }
-    
-    if (this.contentQueue) {
-      clearTimeout(this.contentQueue);
     }
   }
 }
